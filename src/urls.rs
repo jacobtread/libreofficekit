@@ -3,7 +3,7 @@ use std::fmt;
 use std::path::Path;
 use url::Url;
 
-use crate::error::Error;
+use crate::OfficeError;
 
 /// Type-safe URL "container" for LibreOffice documents
 #[derive(Debug, Clone)]
@@ -42,14 +42,14 @@ impl fmt::Display for DocUrl {
 /// #  Ok(())
 /// # }
 /// ```
-pub fn local_into_abs<S: Into<String>>(path: S) -> Result<DocUrl, Error> {
+pub fn local_into_abs<S: Into<String>>(path: S) -> Result<DocUrl, OfficeError> {
     let doc_path = path.into();
 
     match std::fs::canonicalize(&doc_path) {
         Ok(doc_abspath) => local_as_abs(doc_abspath.display().to_string()),
         Err(ex) => {
             let msg = format!("Does the file exist at {}? {}", doc_path, ex.to_string());
-            Err(Error::new(msg))
+            Err(OfficeError::OfficeError(msg))
         }
     }
 }
@@ -71,12 +71,12 @@ pub fn local_into_abs<S: Into<String>>(path: S) -> Result<DocUrl, Error> {
 /// #  Ok(())
 /// # }
 /// ```
-pub fn local_as_abs<S: Into<String>>(path: S) -> Result<DocUrl, Error> {
+pub fn local_as_abs<S: Into<String>>(path: S) -> Result<DocUrl, OfficeError> {
     let uri_location = path.into();
     let p = Path::new(&uri_location);
 
     if !p.is_absolute() {
-        return Err(Error::new(format!(
+        return Err(OfficeError::OfficeError(format!(
             "The file path {} must be absolute!",
             &uri_location
         )));
@@ -86,12 +86,13 @@ pub fn local_as_abs<S: Into<String>>(path: S) -> Result<DocUrl, Error> {
 
     match url_ret {
         Ok(url_value) => {
-            let value_str = CString::new(url_value.as_str())
-                .map_err(|_| Error::new("url path cannot contain null".to_string()))?;
+            let value_str = CString::new(url_value.as_str()).map_err(|_| {
+                OfficeError::OfficeError("url path cannot contain null".to_string())
+            })?;
             Ok(DocUrl(value_str))
         }
         Err(ex) => {
-            return Err(Error::new(format!(
+            return Err(OfficeError::OfficeError(format!(
                 "Failed to parse as URL {}! {:?}",
                 uri_location, ex
             )));
@@ -117,12 +118,12 @@ pub fn local_as_abs<S: Into<String>>(path: S) -> Result<DocUrl, Error> {
 /// #  Ok(())
 /// # }
 /// ```
-pub fn remote<S: Into<String>>(uri: S) -> Result<DocUrl, Error> {
+pub fn remote<S: Into<String>>(uri: S) -> Result<DocUrl, OfficeError> {
     let uri_location = uri.into();
     let uri_location_str = uri_location.as_str();
 
     if let Err(ex) = Url::parse(uri_location_str) {
-        return Err(Error::new(format!(
+        return Err(OfficeError::OfficeError(format!(
             "Failed to parse URI {}! {}",
             uri_location,
             ex.to_string()
@@ -130,7 +131,7 @@ pub fn remote<S: Into<String>>(uri: S) -> Result<DocUrl, Error> {
     }
 
     let value_str = CString::new(uri_location.as_str())
-        .map_err(|_| Error::new("url path cannot contain null".to_string()))?;
+        .map_err(|_| OfficeError::OfficeError("url path cannot contain null".to_string()))?;
 
     Ok(DocUrl(value_str))
 }

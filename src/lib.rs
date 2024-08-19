@@ -7,10 +7,8 @@
 #![allow(clippy::all)]
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
-mod error;
 pub mod urls;
 
-use error::Error;
 use num_enum::FromPrimitive;
 use serde::Deserialize;
 use thiserror::Error;
@@ -18,7 +16,7 @@ use urls::DocUrl;
 
 use std::{
     collections::HashMap,
-    ffi::{c_char, c_int, c_void, CStr, CString},
+    ffi::{c_char, c_int, CStr, CString},
     os::raw::c_ulonglong,
     ptr::null_mut,
 };
@@ -147,7 +145,7 @@ pub enum OfficeError {
 }
 
 impl Office {
-    pub fn new(install_path: &str) -> Result<Office, Error> {
+    pub fn new(install_path: &str) -> Result<Office, OfficeError> {
         let install_path =
             CString::new(install_path).expect("install path should not contain null byte");
 
@@ -160,7 +158,7 @@ impl Office {
 
         // Check initialization errors
         if let Some(err) = get_error(lok, lok_class) {
-            return Err(Error::new(err));
+            return Err(OfficeError::OfficeError(err));
         }
 
         Ok(Office { lok, lok_class })
@@ -253,26 +251,29 @@ impl Office {
     }
 
     /// Dumps the state from office as a string
-    pub fn dump_state(&mut self) -> Result<String, Error> {
-        unsafe {
+    pub fn dump_state(&mut self) -> Result<String, OfficeError> {
+        let value = unsafe {
             let mut state: *mut c_char = null_mut();
             let dump_state = (*self.lok_class)
                 .dumpState
-                .expect("missing dumpState function");
+                .ok_or(OfficeError::MissingFunction("dumpState"))?;
             dump_state(self.lok, std::ptr::null(), &mut state);
-            if let Some(error) = self.get_error() {
-                return Err(Error::new(error));
-            }
-            let value = CString::from_raw(state);
 
-            Ok(value.to_string_lossy().to_string())
-        }
+            if let Some(error) = self.get_error() {
+                return Err(OfficeError::OfficeError(error));
+            }
+
+            CString::from_raw(state)
+        };
+
+        Ok(value.to_string_lossy().to_string())
     }
 
+    /// Registers a callback for office
     pub fn register_callback<F: FnMut(CallbackType, *const std::os::raw::c_char)>(
         &mut self,
         callback: F,
-    ) -> Result<(), Error> {
+    ) -> Result<(), OfficeError> {
         /// Create a shim to wrap the callback function so it can be invoked
         unsafe extern "C" fn callback_shim(
             ty: std::os::raw::c_int,
@@ -299,30 +300,30 @@ impl Office {
         unsafe {
             let register_callback = (*self.lok_class)
                 .registerCallback
-                .expect("missing registerCallback function");
+                .ok_or(OfficeError::MissingFunction("registerCallback"))?;
 
             register_callback(self.lok, Some(callback_shim), callback_ptr.cast());
         }
 
         if let Some(error) = self.get_error() {
-            return Err(Error::new(error));
+            return Err(OfficeError::OfficeError(error));
         }
 
         Ok(())
     }
 
-    pub fn document_load(&mut self, url: DocUrl) -> Result<Document, Error> {
+    pub fn document_load(&mut self, url: DocUrl) -> Result<Document, OfficeError> {
         // Load the document
         let document = unsafe {
             let document_load = (*self.lok_class)
                 .documentLoad
-                .expect("missing documentLoad function");
+                .ok_or(OfficeError::MissingFunction("documentLoad"))?;
             document_load(self.lok, url.as_ptr())
         };
 
         // Check for errors
         if let Some(error) = self.get_error() {
-            return Err(Error::new(error));
+            return Err(OfficeError::OfficeError(error));
         }
 
         Ok(Document { doc: document })
@@ -332,41 +333,41 @@ impl Office {
         &mut self,
         url: DocUrl,
         options: &str,
-    ) -> Result<Document, Error> {
+    ) -> Result<Document, OfficeError> {
         let options = CString::new(options).expect("options cannot contain null");
         // Load the document
         let document = unsafe {
             let document_load_with_options = (*self.lok_class)
                 .documentLoadWithOptions
-                .expect("missing documentLoad function");
+                .ok_or(OfficeError::MissingFunction("documentLoadWithOptions"))?;
             document_load_with_options(self.lok, url.as_ptr(), options.as_ptr())
         };
 
         // Check for errors
         if let Some(error) = self.get_error() {
-            return Err(Error::new(error));
+            return Err(OfficeError::OfficeError(error));
         }
 
         Ok(Document { doc: document })
     }
 
-    pub fn trim_memory(&mut self, target: c_int) -> Result<(), Error> {
+    pub fn trim_memory(&mut self, target: c_int) -> Result<(), OfficeError> {
         unsafe {
             let trim_memory = (*self.lok_class)
                 .trimMemory
-                .expect("missing trimMemory function");
+                .ok_or(OfficeError::MissingFunction("trimMemory"))?;
             trim_memory(self.lok, target)
         };
 
         // Check for errors
         if let Some(error) = self.get_error() {
-            return Err(Error::new(error));
+            return Err(OfficeError::OfficeError(error));
         }
 
         Ok(())
     }
 
-    pub fn set_optional_features<T>(&mut self, optional_features: T) -> Result<u64, Error>
+    pub fn set_optional_features<T>(&mut self, optional_features: T) -> Result<u64, OfficeError>
     where
         T: IntoIterator<Item = LibreOfficeKitOptionalFeatures>,
     {
@@ -378,12 +379,12 @@ impl Office {
         unsafe {
             let set_optional_features = (*self.lok_class)
                 .setOptionalFeatures
-                .expect("missing setOptionalFeatures function");
+                .ok_or(OfficeError::MissingFunction("setOptionalFeatures"))?;
             set_optional_features(self.lok, feature_flags);
         }
 
         if let Some(error) = self.get_error() {
-            return Err(Error::new(error));
+            return Err(OfficeError::OfficeError(error));
         }
 
         Ok(feature_flags)
@@ -393,7 +394,7 @@ impl Office {
         &mut self,
         url: DocUrl,
         password: Option<&str>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), OfficeError> {
         // Create a C compatible string
         let password =
             password.map(|value| CString::new(value).expect("password cannot contain null"));
@@ -407,33 +408,37 @@ impl Office {
         unsafe {
             let set_document_password = (*self.lok_class)
                 .setDocumentPassword
-                .expect("missing setDocumentPassword function");
+                .ok_or(OfficeError::MissingFunction("setDocumentPassword"))?;
 
             set_document_password(self.lok, url.as_ptr(), password);
         }
 
         if let Some(error) = self.get_error() {
-            return Err(Error::new(error));
+            return Err(OfficeError::OfficeError(error));
         }
 
         Ok(())
     }
 
-    pub fn document_load_with(&mut self, url: DocUrl, options: &str) -> Result<Document, Error> {
+    pub fn document_load_with(
+        &mut self,
+        url: DocUrl,
+        options: &str,
+    ) -> Result<Document, OfficeError> {
         let c_options = CString::new(options).unwrap();
 
         // Load the document
         let doc = unsafe {
             let document_load_with_options = (*self.lok_class)
                 .documentLoadWithOptions
-                .expect("missing documentLoadWithOptions function");
+                .ok_or(OfficeError::MissingFunction("documentLoadWithOptions"))?;
 
             document_load_with_options(self.lok, url.as_ptr(), c_options.as_ptr())
         };
 
         // Check for errors
         if let Some(error) = self.get_error() {
-            return Err(Error::new(error));
+            return Err(OfficeError::OfficeError(error));
         }
 
         debug_assert!(!doc.is_null());
@@ -445,36 +450,36 @@ impl Office {
         &mut self,
         window_id: c_ulonglong,
         arguments: *const c_char,
-    ) -> Result<(), Error> {
+    ) -> Result<(), OfficeError> {
         unsafe {
             let send_dialog_event = (*self.lok_class)
                 .sendDialogEvent
-                .expect("missing sendDialogEvent function");
+                .ok_or(OfficeError::MissingFunction("sendDialogEvent"))?;
 
             send_dialog_event(self.lok, window_id, arguments);
         }
 
         if let Some(error) = self.get_error() {
-            return Err(Error::new(error));
+            return Err(OfficeError::OfficeError(error));
         }
 
         Ok(())
     }
 
-    pub fn run_macro(&mut self, url: &str) -> Result<(), Error> {
+    pub fn run_macro(&mut self, url: &str) -> Result<(), OfficeError> {
         let url = CString::new(url).expect("macro url cannot include null");
 
         let result = unsafe {
             let run_macro = (*self.lok_class)
                 .runMacro
-                .expect("missing runMacro function");
+                .ok_or(OfficeError::MissingFunction("runMacro"))?;
 
             run_macro(self.lok, url.as_ptr())
         };
 
         if result == 0 {
             if let Some(error) = self.get_error() {
-                return Err(Error::new(error));
+                return Err(OfficeError::OfficeError(error));
             }
         }
 
@@ -483,6 +488,7 @@ impl Office {
 
     fn destroy(&mut self) {
         unsafe {
+            // Destroy should be available in all versions
             let destroy = (*self.lok_class).destroy.expect("missing destroy function");
             destroy(self.lok);
         }
@@ -602,28 +608,4 @@ pub enum CallbackType {
 
     #[num_enum(catch_all)]
     Unknown(i32),
-}
-
-#[derive(Debug)]
-pub struct JSDialog(pub serde_json::Value);
-
-impl JSDialog {
-    /// Get the ID field for the dialog.
-    pub fn get_id(&self) -> Option<c_ulonglong> {
-        let obj = self.0.as_object()?;
-        obj.iter().find_map(|value| {
-            if value.0.ne("id") {
-                return None;
-            }
-
-            let value = value.1.as_u64()?;
-            Some(value)
-        })
-    }
-}
-
-#[derive(Debug, Deserialize)]
-pub struct JSDialogResponse {
-    id: String,
-    response: u64,
 }
