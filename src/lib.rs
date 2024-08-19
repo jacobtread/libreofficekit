@@ -13,9 +13,11 @@ pub mod urls;
 use error::Error;
 use num_enum::FromPrimitive;
 use serde::Deserialize;
+use thiserror::Error;
 use urls::DocUrl;
 
 use std::{
+    collections::HashMap,
     ffi::{c_char, c_int, c_void, CStr, CString},
     os::raw::c_ulonglong,
     ptr::null_mut,
@@ -94,6 +96,56 @@ fn free_error(lok_class: *mut LibreOfficeKitClass, error: *mut i8) {
     }
 }
 
+#[derive(Debug, Deserialize)]
+pub struct FilterTypes {
+    pub values: HashMap<String, FilterType>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct FilterType {
+    #[serde(rename = "MediaType")]
+    pub media_type: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct OfficeVersionInfo {
+    #[serde(rename = "ProductName")]
+    pub product_name: String,
+    #[serde(rename = "ProductVersion")]
+    pub product_version: String,
+    #[serde(rename = "ProductExtension")]
+    pub product_extension: String,
+    #[serde(rename = "BuildId")]
+    pub build_id: String,
+}
+
+#[derive(Debug, Error)]
+pub enum OfficeError {
+    /// Error message produced by office
+    #[error("{0}")]
+    OfficeError(String),
+
+    /// Function is not available in the current office install
+    #[error("missing '{0}' function")]
+    MissingFunction(&'static str),
+
+    /// Filter value was an invalid string
+    #[error("invalid filter types str: {0}")]
+    InvalidFilterValue(std::str::Utf8Error),
+
+    /// Filter types could not be parsed
+    #[error("failed to parse filters: {0}")]
+    InvalidFilterTypes(serde_json::Error),
+
+    /// Version info value was an invalid string
+    #[error("invalid version info str: {0}")]
+    InvalidVersionInfoValue(std::str::Utf8Error),
+
+    /// Version info could not be parsed
+    #[error("failed to parse version info: {0}")]
+    InvalidVersionInfo(serde_json::Error),
+}
+
 impl Office {
     pub fn new(install_path: &str) -> Result<Office, Error> {
         let install_path =
@@ -114,29 +166,93 @@ impl Office {
         Ok(Office { lok, lok_class })
     }
 
-    fn destroy(&mut self) {
-        unsafe {
-            let destroy = (*self.lok_class).destroy.expect("missing destroy function");
-            destroy(self.lok);
-        }
+    /// Gets the available filter types for the office instance
+    pub fn get_filter_types(&self) -> Result<FilterTypes, OfficeError> {
+        let value = unsafe {
+            let get_filter_types = (*self.lok_class)
+                .getFilterTypes
+                .ok_or(OfficeError::MissingFunction("getFilterTypes"))?;
+
+            let value = get_filter_types(self.lok);
+            CString::from_raw(value)
+        };
+
+        let value = value.to_str().map_err(OfficeError::InvalidFilterValue)?;
+
+        let value: FilterTypes =
+            serde_json::from_str(value).map_err(OfficeError::InvalidFilterTypes)?;
+
+        Ok(value)
     }
 
-    /// Returns the last error as a string
+    /// Gets the version details from office
+    pub fn get_version_info(&self) -> Result<OfficeVersionInfo, OfficeError> {
+        let value = unsafe {
+            let get_version_info = (*self.lok_class)
+                .getVersionInfo
+                .ok_or(OfficeError::MissingFunction("getVersionInfo"))?;
+
+            let value = get_version_info(self.lok);
+            CString::from_raw(value)
+        };
+
+        let value = value
+            .to_str()
+            .map_err(OfficeError::InvalidVersionInfoValue)?;
+
+        let value: OfficeVersionInfo =
+            serde_json::from_str(value).map_err(OfficeError::InvalidVersionInfo)?;
+
+        Ok(value)
+    }
+
+    /// Returns the last error from office as a string
     pub fn get_error(&mut self) -> Option<String> {
         get_error(self.lok, self.lok_class)
     }
 
-    pub fn set_option(&mut self, option: &str, value: &str) {
-        unsafe {
-            let option = CString::new(option).unwrap();
-            let value = CString::new(value).unwrap();
+    /// Exports the provided document and signs the content
+    pub fn sign_document(
+        &mut self,
+        url: DocUrl,
+        certificate: &[u8],
+        private_key: &[u8],
+    ) -> Result<bool, OfficeError> {
+        debug_assert!(certificate.len() <= i32::MAX as usize);
+        debug_assert!(private_key.len() <= i32::MAX as usize);
 
+        let result = unsafe {
+            let sign_document = (*self.lok_class)
+                .signDocument
+                .ok_or(OfficeError::MissingFunction("signDocument"))?;
+            sign_document(
+                self.lok,
+                url.as_ptr(),
+                certificate.as_ptr(),
+                certificate.len() as i32,
+                private_key.as_ptr(),
+                private_key.len() as i32,
+            )
+        };
+
+        Ok(result)
+    }
+
+    pub fn set_option(&mut self, option: &str, value: &str) -> Result<(), OfficeError> {
+        let option = CString::new(option).expect("option cannot contain null");
+        let value = CString::new(value).expect("value cannot contain null");
+
+        unsafe {
             let set_option = (*self.lok_class)
                 .setOption
-                .expect("missing setOption function");
+                .ok_or(OfficeError::MissingFunction("setOption"))?;
             set_option(self.lok, option.as_ptr(), value.as_ptr());
         }
+
+        Ok(())
     }
+
+    /// Dumps the state from office as a string
     pub fn dump_state(&mut self) -> Result<String, Error> {
         unsafe {
             let mut state: *mut c_char = null_mut();
@@ -217,7 +333,7 @@ impl Office {
         url: DocUrl,
         options: &str,
     ) -> Result<Document, Error> {
-        let options = CString::new(options).unwrap();
+        let options = CString::new(options).expect("options cannot contain null");
         // Load the document
         let document = unsafe {
             let document_load_with_options = (*self.lok_class)
@@ -344,7 +460,10 @@ impl Office {
 
         Ok(())
     }
-    pub fn run_macro(&mut self, url: DocUrl) -> Result<(), Error> {
+
+    pub fn run_macro(&mut self, url: &str) -> Result<(), Error> {
+        let url = CString::new(url).expect("macro url cannot include null");
+
         let result = unsafe {
             let run_macro = (*self.lok_class)
                 .runMacro
@@ -361,6 +480,13 @@ impl Office {
 
         Ok(())
     }
+
+    fn destroy(&mut self) {
+        unsafe {
+            let destroy = (*self.lok_class).destroy.expect("missing destroy function");
+            destroy(self.lok);
+        }
+    }
 }
 
 impl Drop for Office {
@@ -375,21 +501,13 @@ impl Document {
         let format: CString = CString::new(format).expect("format cannot contain null byte");
         let filter: CString =
             CString::new(filter.unwrap_or_default()).expect("filter cannot contain null byte");
-        let ret = unsafe { self.save_as_internal(url.as_ptr(), format.as_ptr(), filter.as_ptr()) };
+        let ret = unsafe {
+            let class = (*self.doc).pClass;
+            let save_as = (*class).saveAs.expect("missing saveAs function");
+
+            save_as(self.doc, url.as_ptr(), format.as_ptr(), filter.as_ptr())
+        };
         ret != 0
-    }
-
-    /// Handles the internal call to [LibreOfficeKitDocumentClass::saveAs]
-    unsafe fn save_as_internal(
-        &mut self,
-        url: *const c_char,
-        format: *const c_char,
-        filter: *const c_char,
-    ) -> i32 {
-        let class = (*self.doc).pClass;
-        let save_as = (*class).saveAs.expect("missing saveAs function");
-
-        save_as(self.doc, url, format, filter)
     }
 
     fn destroy(&mut self) {
