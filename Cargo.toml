@@ -1,6 +1,6 @@
 [package]
 name = "libreofficekit"
-version = "0.0.0"
+version = "0.0.1"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/jacobtread/libreofficekit"
@@ -9,10 +9,17 @@ readme = "README.md"
 description = "Wrapper around the LibreofficeKit (LOK) C++ library"
 
 [dependencies]
-num_enum = "0.7.3"
-serde = { version = "1.0.208", features = ["derive"] }
-serde_json = "1.0.125"
-thiserror = "1.0.63"
+# Enum constants
+num_enum = "0.7"
+
+# JSON parsing
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Error handling
+thiserror = "1"
+
+# URL handling
 url = "2.2.2"
 
 [build-dependencies]
