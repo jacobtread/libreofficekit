@@ -9,8 +9,14 @@ readme = "README.md"
 description = "Wrapper around the LibreofficeKit (LOK) C++ library"
 
 [dependencies]
+# Bitsets
+bitflags = "2"
+
 # Enum constants
 num_enum = "0.7"
+
+# Locks for sharing safely
+parking_lot = "0.12"
 
 # JSON parsing
 serde = { version = "1", features = ["derive"] }

@@ -30,6 +30,9 @@ fn generate_binding(path: &str) {
         .header("src/wrapper.h")
         .layout_tests(false)
         .clang_arg(format!("-I{path}"))
+        .allowlist_type("LibreOfficeKit")
+        .allowlist_type("LibreOfficeKitDocument")
+        .allowlist_function("lok_init_wrapper")
         .generate()
         .expect("Unable to generate bindings");
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
