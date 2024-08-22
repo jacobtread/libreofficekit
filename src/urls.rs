@@ -18,11 +18,11 @@ impl DocUrl {
     /// Converts a local relative path into an absolute path that LibreOffice can use
     pub fn local_into_abs<S: AsRef<str>>(path: S) -> Result<DocUrl, OfficeError> {
         let path: &str = path.as_ref();
-        let doc_abspath = std::fs::canonicalize(path).map_err(|err| {
+        let abs_path = std::fs::canonicalize(path).map_err(|err| {
             OfficeError::OfficeError(format!("Does the file exist at {}? {}", path, err))
         })?;
 
-        Self::local_as_abs(doc_abspath.display().to_string())
+        Self::local_as_abs(abs_path.display().to_string())
     }
 
     /// Converts a local absolute path into a [DocUrl] the path MUST be an absolute path
