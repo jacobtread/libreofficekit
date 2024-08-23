@@ -55,7 +55,14 @@ impl Office {
         }
 
         let install_path = CString::new(install_path)?;
-        let mut raw = unsafe { sys::OfficeRaw::init(install_path.as_ptr()) };
+        let mut raw = match unsafe { sys::OfficeRaw::init(install_path.as_ptr()) } {
+            Ok(value) => value,
+            Err(err) => {
+                // Unlock the global office lock on init failure
+                GLOBAL_OFFICE_LOCK.store(false, Ordering::SeqCst);
+                return Err(err);
+            }
+        };
 
         // Check initialization errors
         if let Some(err) = unsafe { raw.get_error() } {

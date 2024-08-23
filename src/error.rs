@@ -31,4 +31,8 @@ pub enum OfficeError {
     /// Prevented from creating another office instance
     #[error("already another active instance")]
     InstanceLock,
+
+    /// Unknown error happened while initializing LOK
+    #[error("unknown initialization error")]
+    UnknownInit,
 }

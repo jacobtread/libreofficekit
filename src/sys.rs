@@ -36,13 +36,21 @@ pub struct OfficeRaw {
 
 impl OfficeRaw {
     /// Initializes a new instance of LOK
-    pub unsafe fn init(install_path: *const c_char) -> Self {
+    pub unsafe fn init(install_path: *const c_char) -> Result<Self, OfficeError> {
         let lok = ffi::lok_init_wrapper(install_path);
+
+        if lok.is_null() {
+            return Err(OfficeError::UnknownInit);
+        }
+
         let lok_class = (*lok).pClass;
-        Self {
+
+        let instance = Self {
             this: lok,
             class: lok_class,
-        }
+        };
+
+        Ok(instance)
     }
 
     /// Gets a [CString] containing the JSON for the available LibreOffice filter types
