@@ -6,6 +6,7 @@ use std::{
     collections::HashMap,
     ffi::CString,
     os::raw::{c_char, c_int},
+    path::Path,
     rc::Rc,
     sync::atomic::Ordering,
 };
@@ -32,6 +33,20 @@ pub struct Office {
 }
 
 impl Office {
+    /// Attempts to find an installation path from one of the common system install
+    /// locations
+    pub fn find_install_path() -> Option<&'static str> {
+        const KNOWN_PATHS: &[&str] = &[
+            "/usr/lib64/libreoffice/program",
+            "/usr/lib/libreoffice/program",
+        ];
+
+        KNOWN_PATHS
+            .iter()
+            .find(|&path| Path::new(path).exists())
+            .copied()
+    }
+
     /// Creates a new LOK instance from the provided install path
     pub fn new(install_path: &str) -> Result<Office, OfficeError> {
         // Try lock the global office lock
