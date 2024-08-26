@@ -54,7 +54,7 @@ impl OfficeRaw {
     }
 
     /// Gets a [CString] containing the JSON for the available LibreOffice filter types
-    pub unsafe fn get_filter_types(&mut self) -> Result<CString, OfficeError> {
+    pub unsafe fn get_filter_types(&self) -> Result<CString, OfficeError> {
         let get_filter_types = (*self.class)
             .getFilterTypes
             .ok_or(OfficeError::MissingFunction("getFilterTypes"))?;
@@ -69,7 +69,7 @@ impl OfficeRaw {
     }
 
     /// Gets a [CString] containing the JSON for the current LibreOffice version details
-    pub unsafe fn get_version_info(&mut self) -> Result<CString, OfficeError> {
+    pub unsafe fn get_version_info(&self) -> Result<CString, OfficeError> {
         let get_version_info = (*self.class)
             .getVersionInfo
             .ok_or(OfficeError::MissingFunction("getVersionInfo"))?;
@@ -84,7 +84,7 @@ impl OfficeRaw {
     }
 
     /// Gets a [CString] containing a dump of the current LibreOffice state
-    pub unsafe fn dump_state(&mut self) -> Result<CString, OfficeError> {
+    pub unsafe fn dump_state(&self) -> Result<CString, OfficeError> {
         let mut state: *mut c_char = null_mut();
         let dump_state = (*self.class)
             .dumpState
@@ -99,7 +99,7 @@ impl OfficeRaw {
     }
 
     /// Trims memory from LibreOffice
-    pub unsafe fn trim_memory(&mut self, target: c_int) -> Result<(), OfficeError> {
+    pub unsafe fn trim_memory(&self, target: c_int) -> Result<(), OfficeError> {
         let trim_memory = (*self.class)
             .trimMemory
             .ok_or(OfficeError::MissingFunction("trimMemory"))?;
@@ -115,7 +115,7 @@ impl OfficeRaw {
 
     /// Sets an office option
     pub unsafe fn set_option(
-        &mut self,
+        &self,
         option: *const c_char,
         value: *const c_char,
     ) -> Result<(), OfficeError> {
@@ -134,7 +134,7 @@ impl OfficeRaw {
 
     /// Exports the provided document and signs the content
     pub unsafe fn sign_document(
-        &mut self,
+        &self,
         url: &DocUrl,
         certificate: *const u8,
         certificate_len: i32,
@@ -157,7 +157,7 @@ impl OfficeRaw {
     }
 
     /// Loads a document without any options
-    pub unsafe fn document_load(&mut self, url: &DocUrl) -> Result<DocumentRaw, OfficeError> {
+    pub unsafe fn document_load(&self, url: &DocUrl) -> Result<DocumentRaw, OfficeError> {
         let document_load = (*self.class)
             .documentLoad
             .ok_or(OfficeError::MissingFunction("documentLoad"))?;
@@ -175,7 +175,7 @@ impl OfficeRaw {
 
     /// Loads a document with additional options
     pub unsafe fn document_load_with_options(
-        &mut self,
+        &self,
         url: &DocUrl,
         options: *const c_char,
     ) -> Result<DocumentRaw, OfficeError> {
@@ -196,7 +196,7 @@ impl OfficeRaw {
 
     /// Sets the current document password
     pub unsafe fn set_document_password(
-        &mut self,
+        &self,
         url: &DocUrl,
         password: *const c_char,
     ) -> Result<(), OfficeError> {
@@ -215,7 +215,7 @@ impl OfficeRaw {
     }
 
     /// Sets the optional features bitset
-    pub unsafe fn set_optional_features(&mut self, features: u64) -> Result<(), OfficeError> {
+    pub unsafe fn set_optional_features(&self, features: u64) -> Result<(), OfficeError> {
         let set_optional_features = (*self.class)
             .setOptionalFeatures
             .ok_or(OfficeError::MissingFunction("setOptionalFeatures"))?;
@@ -230,7 +230,7 @@ impl OfficeRaw {
     }
 
     pub unsafe fn send_dialog_event(
-        &mut self,
+        &self,
         window_id: c_ulonglong,
         arguments: *const c_char,
     ) -> Result<(), OfficeError> {
@@ -248,7 +248,7 @@ impl OfficeRaw {
         Ok(())
     }
 
-    pub unsafe fn run_macro(&mut self, url: *const c_char) -> Result<bool, OfficeError> {
+    pub unsafe fn run_macro(&self, url: *const c_char) -> Result<bool, OfficeError> {
         let run_macro = (*self.class)
             .runMacro
             .ok_or(OfficeError::MissingFunction("runMacro"))?;
@@ -265,7 +265,7 @@ impl OfficeRaw {
         Ok(result != 0)
     }
 
-    pub unsafe fn register_callback<F>(&mut self, callback: F) -> Result<(), OfficeError>
+    pub unsafe fn register_callback<F>(&self, callback: F) -> Result<(), OfficeError>
     where
         F: FnMut(c_int, *const c_char),
     {
@@ -300,7 +300,7 @@ impl OfficeRaw {
     }
 
     /// Requests the latest error from LOK if one is available
-    pub unsafe fn get_error(&mut self) -> Option<String> {
+    pub unsafe fn get_error(&self) -> Option<String> {
         let get_error = (*self.class).getError.expect("missing getError function");
         let raw_error = get_error(self.this);
 
@@ -322,7 +322,7 @@ impl OfficeRaw {
     ///
     /// Used when we've obtained the error as we clone
     /// our own copy of the error
-    unsafe fn free_error(&mut self, error: *mut i8) {
+    unsafe fn free_error(&self, error: *mut i8) {
         // Only available LibreOffice >=5.2
         if let Some(free_error) = (*self.class).freeError {
             free_error(error);
@@ -330,7 +330,7 @@ impl OfficeRaw {
     }
 
     /// Destroys the LOK instance
-    unsafe fn destroy(&mut self) {
+    unsafe fn destroy(&self) {
         let destroy = (*self.class).destroy.expect("missing destroy function");
         destroy(self.this);
     }

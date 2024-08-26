@@ -13,7 +13,6 @@ use std::{
 
 use bitflags::bitflags;
 use num_enum::FromPrimitive;
-use parking_lot::Mutex;
 use serde::Deserialize;
 
 pub use error::OfficeError;
@@ -29,7 +28,7 @@ pub use urls::DocUrl;
 /// creation is restricted with a static global lock
 #[derive(Clone)]
 pub struct Office {
-    raw: Rc<Mutex<sys::OfficeRaw>>,
+    raw: Rc<sys::OfficeRaw>,
 }
 
 impl Office {
@@ -55,7 +54,7 @@ impl Office {
         }
 
         let install_path = CString::new(install_path)?;
-        let mut raw = match unsafe { sys::OfficeRaw::init(install_path.as_ptr()) } {
+        let raw = match unsafe { sys::OfficeRaw::init(install_path.as_ptr()) } {
             Ok(value) => value,
             Err(err) => {
                 // Unlock the global office lock on init failure
@@ -69,14 +68,11 @@ impl Office {
             return Err(OfficeError::OfficeError(err));
         }
 
-        Ok(Office {
-            raw: Rc::new(Mutex::new(raw)),
-        })
+        Ok(Office { raw: Rc::new(raw) })
     }
 
     pub fn get_filter_types(&self) -> Result<FilterTypes, OfficeError> {
-        let raw = &mut *self.raw.lock();
-        let value = unsafe { raw.get_filter_types()? };
+        let value = unsafe { self.raw.get_filter_types()? };
 
         let value = value.to_str().map_err(OfficeError::InvalidUtf8String)?;
 
@@ -87,8 +83,7 @@ impl Office {
     }
 
     pub fn get_version_info(&self) -> Result<OfficeVersionInfo, OfficeError> {
-        let raw = &mut *self.raw.lock();
-        let value = unsafe { raw.get_version_info()? };
+        let value = unsafe { self.raw.get_version_info()? };
 
         let value = value.to_str().map_err(OfficeError::InvalidUtf8String)?;
 
@@ -108,9 +103,8 @@ impl Office {
         debug_assert!(certificate.len() <= i32::MAX as usize);
         debug_assert!(private_key.len() <= i32::MAX as usize);
 
-        let raw = &mut *self.raw.lock();
         let result = unsafe {
-            raw.sign_document(
+            self.raw.sign_document(
                 url,
                 certificate.as_ptr(),
                 certificate.len() as i32,
@@ -123,8 +117,7 @@ impl Office {
     }
 
     pub fn document_load(&self, url: &DocUrl) -> Result<Document, OfficeError> {
-        let raw = &mut *self.raw.lock();
-        let raw = unsafe { raw.document_load(url)? };
+        let raw = unsafe { self.raw.document_load(url)? };
         Ok(Document { raw })
     }
 
@@ -134,8 +127,7 @@ impl Office {
         options: &str,
     ) -> Result<Document, OfficeError> {
         let options = CString::new(options)?;
-        let raw = &mut *self.raw.lock();
-        let raw = unsafe { raw.document_load_with_options(url, options.as_ptr())? };
+        let raw = unsafe { self.raw.document_load_with_options(url, options.as_ptr())? };
         Ok(Document { raw })
     }
 
@@ -153,8 +145,7 @@ impl Office {
             .map(|value| value.as_ptr())
             .unwrap_or_else(std::ptr::null);
 
-        let raw = &mut *self.raw.lock();
-        unsafe { raw.set_document_password(url, password)? };
+        unsafe { self.raw.set_document_password(url, password)? };
 
         Ok(())
     }
@@ -163,8 +154,7 @@ impl Office {
         &self,
         features: OfficeOptionalFeatures,
     ) -> Result<(), OfficeError> {
-        let raw = &mut *self.raw.lock();
-        unsafe { raw.set_optional_features(features.bits())? };
+        unsafe { self.raw.set_optional_features(features.bits())? };
 
         Ok(())
     }
@@ -173,8 +163,6 @@ impl Office {
     where
         F: FnMut(CallbackType, *const c_char),
     {
-        let raw = &mut *self.raw.lock();
-
         // Create callback wrapper that maps the type
         let callback = move |ty, payload| {
             let ty = CallbackType::from_primitive(ty);
@@ -182,7 +170,7 @@ impl Office {
         };
 
         unsafe {
-            raw.register_callback(callback)?;
+            self.raw.register_callback(callback)?;
         }
 
         Ok(())
@@ -190,14 +178,12 @@ impl Office {
 
     pub fn run_macro(&self, url: &str) -> Result<bool, OfficeError> {
         let url = CString::new(url)?;
-        let raw = &mut *self.raw.lock();
-        let result = unsafe { raw.run_macro(url.as_ptr())? };
+        let result = unsafe { self.raw.run_macro(url.as_ptr())? };
         Ok(result)
     }
 
     pub fn dump_state(&self) -> Result<String, OfficeError> {
-        let raw = &mut *self.raw.lock();
-        let value = unsafe { raw.dump_state()? };
+        let value = unsafe { self.raw.dump_state()? };
         Ok(value.to_string_lossy().to_string())
     }
 
@@ -205,9 +191,7 @@ impl Office {
         let option = CString::new(option)?;
         let value = CString::new(value)?;
 
-        let raw = &mut *self.raw.lock();
-
-        unsafe { raw.set_option(option.as_ptr(), value.as_ptr())? }
+        unsafe { self.raw.set_option(option.as_ptr(), value.as_ptr())? }
 
         Ok(())
     }
@@ -216,9 +200,7 @@ impl Office {
     ///
     /// Large positive number (>=1000) encourages immediate maximum memory saving.
     pub fn trim_memory(&self, target: c_int) -> Result<(), OfficeError> {
-        let raw = &mut *self.raw.lock();
-
-        unsafe { raw.trim_memory(target)? };
+        unsafe { self.raw.trim_memory(target)? };
 
         Ok(())
     }
