@@ -4,7 +4,7 @@ pub mod urls;
 
 use std::{
     collections::HashMap,
-    ffi::CString,
+    ffi::{c_ulonglong, CString},
     os::raw::{c_char, c_int},
     path::Path,
     rc::Rc,
@@ -146,6 +146,18 @@ impl Office {
             .unwrap_or_else(std::ptr::null);
 
         unsafe { self.raw.set_document_password(url, password)? };
+
+        Ok(())
+    }
+
+    pub fn send_dialog_event(
+        &self,
+        window_id: c_ulonglong,
+        arguments: &str,
+    ) -> Result<(), OfficeError> {
+        let arguments = CString::new(arguments)?;
+
+        unsafe { self.raw.send_dialog_event(window_id, arguments.as_ptr())? };
 
         Ok(())
     }
