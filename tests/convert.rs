@@ -36,8 +36,6 @@ fn test_sample_docx_encrypted() {
                 // Provide "I don't have the password"
                 office.set_document_password(&input_url, None).unwrap();
             }
-
-            println!("callback hit");
         })
         .unwrap();
 
