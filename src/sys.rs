@@ -22,7 +22,7 @@ mod ffi {
 }
 
 /// Global lock to prevent creating multiple office instances
-/// at one time, allow other instances must be dropped before
+/// at one time, all other instances must be dropped before
 /// a new one can be created
 pub(crate) static GLOBAL_OFFICE_LOCK: AtomicBool = AtomicBool::new(false);
 
