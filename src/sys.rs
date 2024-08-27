@@ -330,7 +330,7 @@ impl OfficeRaw {
     }
 
     /// Destroys the LOK instance
-    unsafe fn destroy(&self) {
+    pub unsafe fn destroy(&self) {
         let destroy = (*self.class).destroy.expect("missing destroy function");
         destroy(self.this);
     }
@@ -338,7 +338,10 @@ impl OfficeRaw {
 
 impl Drop for OfficeRaw {
     fn drop(&mut self) {
-        unsafe { self.destroy() }
+        #[cfg(feature = "destroy_on_drop")]
+        unsafe {
+            self.destroy()
+        }
 
         // Unlock the global office lock
         GLOBAL_OFFICE_LOCK.store(false, Ordering::SeqCst)
@@ -366,7 +369,7 @@ impl DocumentRaw {
         Ok(save_as(self.this, url.as_ptr(), format, filter))
     }
 
-    unsafe fn destroy(&mut self) {
+    pub unsafe fn destroy(&mut self) {
         let class = (*self.this).pClass;
         let destroy = (*class).destroy.expect("missing destroy function");
         destroy(self.this);
@@ -375,6 +378,9 @@ impl DocumentRaw {
 
 impl Drop for DocumentRaw {
     fn drop(&mut self) {
-        unsafe { self.destroy() }
+        #[cfg(feature = "destroy_on_drop")]
+        unsafe {
+            self.destroy()
+        }
     }
 }

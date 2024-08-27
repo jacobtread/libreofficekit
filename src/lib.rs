@@ -216,6 +216,12 @@ impl Office {
 
         Ok(())
     }
+
+    /// Only exposed when destroy on drop is not enabled
+    #[cfg(not(feature = "destroy_on_drop"))]
+    pub fn destroy(&mut self) {
+        unsafe { self.raw.destroy() }
+    }
 }
 
 pub struct Document {
@@ -236,6 +242,12 @@ impl Document {
         let result = unsafe { self.raw.save_as(url, format.as_ptr(), filter.as_ptr())? };
 
         Ok(result != 0)
+    }
+
+    /// Only exposed when destroy on drop is not enabled
+    #[cfg(not(feature = "destroy_on_drop"))]
+    pub fn destroy(&mut self) {
+        unsafe { self.raw.destroy() }
     }
 }
 

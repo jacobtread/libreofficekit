@@ -8,6 +8,10 @@ authors = ["Jacobtread <jacobtread@gmail.com>"]
 readme = "README.md"
 description = "Wrapper around the LibreofficeKit (LOK) C++ library"
 
+[features]
+default = ["destroy_on_drop"]
+destroy_on_drop = []
+
 [dependencies]
 # Bitsets
 bitflags = "2"
@@ -27,6 +31,7 @@ thiserror = "1"
 
 # URL handling
 url = "2.2.2"
+
 
 [build-dependencies]
 bindgen = "0.70"

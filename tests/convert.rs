@@ -3,7 +3,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use libreofficekit::{CallbackType, DocUrl, Office, OfficeOptionalFeatures};
 
 #[test]
-#[ignore = "test will segfault on office drop"]
 fn test_sample_docx() {
     let office = Office::new(Office::find_install_path().unwrap()).unwrap();
 
