@@ -11,7 +11,7 @@ fn test_sample_docx() {
 
     let mut document = office.document_load(&input_url).unwrap();
 
-    let doc = document.save_as(&output_url, "pdf", None).unwrap();
+    let _doc = document.save_as(&output_url, "pdf", None).unwrap();
 }
 
 #[test]
@@ -54,7 +54,7 @@ fn test_sample_xlsx() {
 
     let mut document = office.document_load(&input_url).unwrap();
 
-    let doc = document.save_as(&output_url, "pdf", None).unwrap();
+    let _doc = document.save_as(&output_url, "pdf", None).unwrap();
 }
 
 #[test]
@@ -66,5 +66,5 @@ fn test_sample_txt() {
 
     let mut document = office.document_load(&input_url).unwrap();
 
-    let doc = document.save_as(&output_url, "pdf", None).unwrap();
+    let _doc = document.save_as(&output_url, "pdf", None).unwrap();
 }
