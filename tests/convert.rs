@@ -6,8 +6,8 @@ use libreofficekit::{CallbackType, DocUrl, Office, OfficeOptionalFeatures};
 fn test_sample_docx() {
     let office = Office::new(Office::find_install_path().unwrap()).unwrap();
 
-    let input_url = DocUrl::local_into_abs("./tests/samples/sample-docx.docx").unwrap();
-    let output_url = DocUrl::local_as_abs("/tmp/test.pdf").unwrap();
+    let input_url = DocUrl::from_relative_path("./tests/samples/sample-docx.docx").unwrap();
+    let output_url = DocUrl::from_absolute_path("/tmp/test.pdf").unwrap();
 
     let mut document = office.document_load(&input_url).unwrap();
 
@@ -18,7 +18,8 @@ fn test_sample_docx() {
 fn test_sample_docx_encrypted() {
     let office = Office::new(Office::find_install_path().unwrap()).unwrap();
 
-    let input_url = DocUrl::local_into_abs("./tests/samples/sample-docx-encrypted.docx").unwrap();
+    let input_url =
+        DocUrl::from_relative_path("./tests/samples/sample-docx-encrypted.docx").unwrap();
     let needs_password = AtomicBool::new(false);
 
     // Allow password requests
@@ -49,8 +50,8 @@ fn test_sample_docx_encrypted() {
 fn test_sample_xlsx() {
     let office = Office::new(Office::find_install_path().unwrap()).unwrap();
 
-    let input_url = DocUrl::local_into_abs("./tests/samples/sample-xlsx.xlsx").unwrap();
-    let output_url = DocUrl::local_as_abs("/tmp/test.pdf").unwrap();
+    let input_url = DocUrl::from_relative_path("./tests/samples/sample-xlsx.xlsx").unwrap();
+    let output_url = DocUrl::from_absolute_path("/tmp/test.pdf").unwrap();
 
     let mut document = office.document_load(&input_url).unwrap();
 
@@ -61,8 +62,8 @@ fn test_sample_xlsx() {
 fn test_sample_txt() {
     let office = Office::new(Office::find_install_path().unwrap()).unwrap();
 
-    let input_url = DocUrl::local_into_abs("./tests/samples/sample-text.txt").unwrap();
-    let output_url = DocUrl::local_as_abs("/tmp/test.pdf").unwrap();
+    let input_url = DocUrl::from_relative_path("./tests/samples/sample-text.txt").unwrap();
+    let output_url = DocUrl::from_absolute_path("/tmp/test.pdf").unwrap();
 
     let mut document = office.document_load(&input_url).unwrap();
 
