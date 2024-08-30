@@ -23,7 +23,7 @@ pub use urls::DocUrl;
 ///
 /// The underlying raw logic is NOT thread safe
 ///
-/// You cannot use more than once instance at a time in a single process
+/// You cannot use more than one instance at a time in a single process
 /// across threads or it will cause a segmentation fault so instance
 /// creation is restricted with a static global lock
 #[derive(Clone)]
@@ -40,6 +40,7 @@ impl Office {
             "/usr/lib/libreoffice/program",
         ];
 
+        // Check common paths
         KNOWN_PATHS
             .iter()
             .find(|&path| Path::new(path).exists())
