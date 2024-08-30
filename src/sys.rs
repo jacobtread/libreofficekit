@@ -195,6 +195,9 @@ impl OfficeRaw {
     }
 
     /// Sets the current document password
+    ///
+    /// Can ONLY be used in [OfficeRaw::register_callback] when used outside
+    /// a callback LOK will throw an error
     pub unsafe fn set_document_password(
         &self,
         url: &DocUrl,

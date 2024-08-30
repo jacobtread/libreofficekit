@@ -132,6 +132,8 @@ impl Office {
         Ok(Document { raw })
     }
 
+    /// Can ONLY be used in [Office::register_callback] when used outside
+    /// a callback LOK will throw an error
     pub fn set_document_password(
         &self,
         url: &DocUrl,

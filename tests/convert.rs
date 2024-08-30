@@ -46,6 +46,47 @@ fn test_sample_docx_encrypted() {
     assert!(needs_password.load(Ordering::SeqCst));
 }
 
+// #[test]
+// fn test_sample_docx_encrypted_known_password() {
+//     let office = Office::new(Office::find_install_path().unwrap()).unwrap();
+
+//     let input_url =
+//         DocUrl::from_relative_path("./tests/samples/sample-docx-encrypted.docx").unwrap();
+//     let needs_password = AtomicBool::new(false);
+
+//     // Allow password requests
+//     office
+//         .set_optional_features(
+//             OfficeOptionalFeatures::DOCUMENT_PASSWORD
+//                 | OfficeOptionalFeatures::DOCUMENT_PASSWORD_TO_MODIFY,
+//         )
+//         .unwrap();
+
+//     office
+//         .register_callback(|ty, _| {
+//             if let CallbackType::DocumentPassword = ty {
+//                 // Password was requested
+//                 if needs_password.swap(true, Ordering::SeqCst) {
+//                     // Password we provided was incorrect, clear password to prevent infinite callback loop
+//                     office.set_document_password(&input_url, None).unwrap();
+//                     return;
+//                 }
+
+//                 // Provide the password
+//                 office
+//                     .set_document_password(&input_url, Some("password"))
+//                     .unwrap();
+//             }
+//         })
+//         .unwrap();
+
+//     // Document loads
+//     let _doc = office.document_load(&input_url).unwrap();
+
+//     // Password was requested
+//     assert!(needs_password.load(Ordering::SeqCst));
+// }
+
 #[test]
 fn test_sample_xlsx() {
     let office = Office::new(Office::find_install_path().unwrap()).unwrap();
