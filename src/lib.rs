@@ -388,14 +388,42 @@ impl Document {
     }
 }
 
+/// Filter types supported by office
 #[derive(Debug, Deserialize)]
 pub struct FilterTypes {
+    /// Mapping between the filter name and details
     #[serde(flatten)]
     pub values: HashMap<String, FilterType>,
 }
 
+impl FilterTypes {
+    /// Get the filter type name by mime type
+    pub fn get_by_mime(&self, mime: &str) -> Option<&str> {
+        self.values
+            .iter()
+            // Find filter with matching media type
+            .find(|(_, value)| value.media_type.eq(mime))
+            // Map to only include the key
+            .map(|(key, _)| key.as_str())
+    }
+
+    /// Checks if the provided mime type is supported for a filter type
+    pub fn is_mime_supported(&self, mime: &str) -> bool {
+        self.get_by_mime(mime).is_some()
+    }
+
+    /// Gets a list of the supported filter mime types
+    pub fn supported_mime_types(&self) -> Vec<&str> {
+        self.values
+            .values()
+            .map(|value| value.media_type.as_str())
+            .collect()
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct FilterType {
+    /// Mime type of the filter format (i.e application/pdf)
     #[serde(rename = "MediaType")]
     pub media_type: String,
 }
