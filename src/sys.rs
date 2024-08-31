@@ -275,12 +275,28 @@ impl OfficeRaw {
         Ok(result != 0)
     }
 
+    /// Clears the currently registered callback
+    pub unsafe fn clear_callback(&self) -> Result<(), OfficeError> {
+        let register_callback = (*self.class)
+            .registerCallback
+            .ok_or(OfficeError::MissingFunction("registerCallback"))?;
+
+        register_callback(self.this, None, null_mut());
+
+        // Check for errors
+        if let Some(error) = self.get_error() {
+            return Err(OfficeError::OfficeError(error));
+        }
+
+        self.free_callback();
+
+        Ok(())
+    }
+
     pub unsafe fn register_callback<F>(&self, callback: F) -> Result<(), OfficeError>
     where
         F: FnMut(c_int, *const c_char) + 'static,
     {
-        self.free_callback();
-
         /// Create a shim to wrap the callback function so it can be invoked
         unsafe extern "C" fn callback_shim(ty: c_int, payload: *const c_char, data: *mut c_void) {
             // Get the callback function from the data argument
@@ -297,9 +313,6 @@ impl OfficeRaw {
         let callback_ptr: *mut Box<dyn FnMut(c_int, *const c_char)> =
             Box::into_raw(Box::new(Box::new(callback)));
 
-        // Store the current callback
-        *self.callback_data.lock() = callback_ptr;
-
         let register_callback = (*self.class)
             .registerCallback
             .ok_or(OfficeError::MissingFunction("registerCallback"))?;
@@ -310,6 +323,12 @@ impl OfficeRaw {
         if let Some(error) = self.get_error() {
             return Err(OfficeError::OfficeError(error));
         }
+
+        // Free any existing callbacks
+        self.free_callback();
+
+        // Store the new callback
+        *self.callback_data.lock() = callback_ptr;
 
         Ok(())
     }

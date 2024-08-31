@@ -227,6 +227,14 @@ impl Office {
         Ok(())
     }
 
+    pub fn clear_callback(&self) -> Result<(), OfficeError> {
+        unsafe {
+            self.raw.clear_callback()?;
+        }
+
+        Ok(())
+    }
+
     pub fn run_macro(&self, url: &str) -> Result<bool, OfficeError> {
         let url = CString::new(url)?;
         let result = unsafe { self.raw.run_macro(url.as_ptr())? };
