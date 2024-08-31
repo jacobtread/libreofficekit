@@ -5,18 +5,21 @@ pub mod urls;
 use std::{
     collections::HashMap,
     ffi::{c_ulonglong, CString},
+    fmt::Display,
     os::raw::{c_char, c_int},
     path::Path,
     rc::{Rc, Weak},
+    str::FromStr,
     sync::atomic::Ordering,
 };
 
 use bitflags::bitflags;
 use num_enum::FromPrimitive;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 pub use error::OfficeError;
 use sys::GLOBAL_OFFICE_LOCK;
+use thiserror::Error;
 pub use urls::DocUrl;
 
 /// Instance of office.
@@ -308,7 +311,7 @@ pub struct OfficeVersionInfo {
     #[serde(rename = "ProductName")]
     pub product_name: String,
     #[serde(rename = "ProductVersion")]
-    pub product_version: String,
+    pub product_version: ProductVersion,
     #[serde(rename = "ProductExtension")]
     pub product_extension: String,
     #[serde(rename = "BuildId")]
@@ -423,4 +426,74 @@ pub enum CallbackType {
 
     #[num_enum(catch_all)]
     Unknown(i32),
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct ProductVersion {
+    pub major: u32,
+    pub minor: u32,
+}
+
+impl PartialOrd for ProductVersion {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ProductVersion {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match self.major.cmp(&other.major) {
+            // Ignore equal major versions
+            core::cmp::Ordering::Equal => {}
+            ord => return ord,
+        }
+
+        // Check minor versions
+        self.minor.cmp(&other.minor)
+    }
+}
+
+impl Display for ProductVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}.{}", self.major, self.minor)
+    }
+}
+
+#[derive(Debug, Error)]
+#[error("product version is invalid or malformed")]
+pub struct InvalidProductVersion;
+
+impl FromStr for ProductVersion {
+    type Err = InvalidProductVersion;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (major, minor) = s.split_once('.').ok_or(InvalidProductVersion)?;
+
+        let major = major.parse().map_err(|_| InvalidProductVersion)?;
+        let minor = minor.parse().map_err(|_| InvalidProductVersion)?;
+
+        Ok(Self { major, minor })
+    }
+}
+
+impl<'de> Deserialize<'de> for ProductVersion {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value: &str = <&str>::deserialize(deserializer)?;
+
+        value
+            .parse::<ProductVersion>()
+            .map_err(|err| serde::de::Error::custom(err.to_string()))
+    }
+}
+
+impl Serialize for ProductVersion {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.to_string().serialize(serializer)
+    }
 }
