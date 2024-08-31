@@ -7,7 +7,7 @@ use std::{
     ffi::{c_ulonglong, CString},
     os::raw::{c_char, c_int},
     path::Path,
-    rc::Rc,
+    rc::{Rc, Weak},
     sync::atomic::Ordering,
 };
 
@@ -29,6 +29,57 @@ pub use urls::DocUrl;
 #[derive(Clone)]
 pub struct Office {
     raw: Rc<sys::OfficeRaw>,
+}
+
+/// Instance of [Office] provided to callbacks
+///
+/// Only holds a week reference which is passed to callback
+/// functions, provides functions that should only be used
+/// from within the callback
+#[derive(Clone)]
+pub struct CallbackOffice {
+    raw: Weak<sys::OfficeRaw>,
+}
+
+impl CallbackOffice {
+    /// Creates a full [Office] reference from the callback value
+    pub fn into_office(self) -> Result<Office, OfficeError> {
+        // Obtain raw access
+        let raw = self.raw.upgrade().ok_or(OfficeError::InstanceDropped)?;
+        Ok(Office { raw })
+    }
+
+    /// Sets the password office should try to decrypt the document with.
+    ///
+    /// Passwords will only be requested if the [OfficeOptionalFeatures::DOCUMENT_PASSWORD]
+    /// optional feature is enabled, otherwise the callback will not run.
+    ///
+    /// ## Important
+    ///
+    /// Set to [None] when the password should not be used / is unknown. The
+    /// callback will continue to be invoked until either the correct password
+    /// is specified or [None] is provided.
+    pub fn set_document_password(
+        &self,
+        url: &DocUrl,
+        password: Option<&str>,
+    ) -> Result<(), OfficeError> {
+        // Obtain raw access
+        let raw = self.raw.upgrade().ok_or(OfficeError::InstanceDropped)?;
+
+        // Create a C compatible string
+        let password = password.map(CString::new);
+
+        // Get pointer to the password
+        let password: *const c_char = password
+            .transpose()?
+            .map(|value| value.as_ptr())
+            .unwrap_or_else(std::ptr::null);
+
+        unsafe { raw.set_document_password(url, password)? };
+
+        Ok(())
+    }
 }
 
 impl Office {
@@ -132,27 +183,6 @@ impl Office {
         Ok(Document { raw })
     }
 
-    /// Can ONLY be used in [Office::register_callback] when used outside
-    /// a callback LOK will throw an error
-    pub fn set_document_password(
-        &self,
-        url: &DocUrl,
-        password: Option<&str>,
-    ) -> Result<(), OfficeError> {
-        // Create a C compatible string
-        let password = password.map(CString::new);
-
-        // Get pointer to the password
-        let password: *const c_char = password
-            .transpose()?
-            .map(|value| value.as_ptr())
-            .unwrap_or_else(std::ptr::null);
-
-        unsafe { self.raw.set_document_password(url, password)? };
-
-        Ok(())
-    }
-
     pub fn send_dialog_event(
         &self,
         window_id: c_ulonglong,
@@ -176,12 +206,18 @@ impl Office {
 
     pub fn register_callback<F>(&self, mut callback: F) -> Result<(), OfficeError>
     where
-        F: FnMut(CallbackType, *const c_char),
+        F: FnMut(CallbackOffice, CallbackType, *const c_char),
     {
+        // Create an office instance to use within the callbacks
+        let callback_office = CallbackOffice {
+            raw: Rc::downgrade(&self.raw),
+        };
+
         // Create callback wrapper that maps the type
         let callback = move |ty, payload| {
+            let callback_office = Clone::clone(&callback_office);
             let ty = CallbackType::from_primitive(ty);
-            callback(ty, payload)
+            callback(callback_office, ty, payload)
         };
 
         unsafe {

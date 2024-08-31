@@ -28,7 +28,7 @@ fn test_sample_docx_encrypted() {
         .unwrap();
 
     office
-        .register_callback(|ty, _| {
+        .register_callback(|office, ty, _| {
             if let CallbackType::DocumentPassword = ty {
                 // Password was requested
                 needs_password.store(true, Ordering::SeqCst);
@@ -63,7 +63,7 @@ fn test_sample_docx_encrypted() {
 //         .unwrap();
 
 //     office
-//         .register_callback(|ty, _| {
+//         .register_callback(|office, ty, _| {
 //             if let CallbackType::DocumentPassword = ty {
 //                 // Password was requested
 //                 if needs_password.swap(true, Ordering::SeqCst) {

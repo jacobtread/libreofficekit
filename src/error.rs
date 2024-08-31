@@ -32,6 +32,10 @@ pub enum OfficeError {
     #[error("already another active instance")]
     InstanceLock,
 
+    /// Office instance was dropped before a callback was invoked
+    #[error("callback invoked after instance was dropped")]
+    InstanceDropped,
+
     /// Unknown error happened while initializing LOK
     #[error("unknown initialization error")]
     UnknownInit,
