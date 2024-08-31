@@ -20,6 +20,16 @@ fn test_create_office_instance() {
 
     let office_path = Office::find_install_path().expect("missing office install path");
     let _office = Office::new(office_path).expect("failed to create office instance");
+}
 
-    println!("done create 1");
+/// Tests obtaining the LibreOffice version information
+#[test]
+fn test_version_info() {
+    let _lock = TEST_MUTEX.lock();
+
+    let office_path = Office::find_install_path().expect("missing office install path");
+    let office = Office::new(office_path).expect("failed to create office instance");
+    let version_info = office.get_version_info().unwrap();
+
+    dbg!(version_info);
 }
