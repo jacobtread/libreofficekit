@@ -426,6 +426,16 @@ impl DocumentRaw {
         Ok(save_as(self.this, url.as_ptr(), format, filter))
     }
 
+    /// Get the type of document
+    pub unsafe fn get_document_type(&mut self) -> Result<i32, OfficeError> {
+        let class = (*self.this).pClass;
+        let get_document_type = (*class)
+            .getDocumentType
+            .ok_or(OfficeError::MissingFunction("getDocumentType"))?;
+
+        Ok(get_document_type(self.this))
+    }
+
     pub unsafe fn destroy(&mut self) {
         let class = (*self.this).pClass;
         let destroy = (*class).destroy.expect("missing destroy function");

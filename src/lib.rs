@@ -375,6 +375,12 @@ impl Document {
         Ok(result != 0)
     }
 
+    /// Obtain the document type
+    pub fn get_document_type(&mut self) -> Result<DocumentType, OfficeError> {
+        let result = unsafe { self.raw.get_document_type()? };
+        Ok(DocumentType::from_primitive(result))
+    }
+
     /// Only exposed when destroy on drop is not enabled
     #[cfg(not(feature = "destroy_on_drop"))]
     pub fn destroy(&mut self) {
@@ -513,6 +519,17 @@ pub enum CallbackType {
 
     #[num_enum(catch_all)]
     Unknown(i32),
+}
+
+#[derive(Debug, FromPrimitive, Clone, Copy, PartialEq, Eq)]
+#[repr(i32)]
+pub enum DocumentType {
+    Text = 0,
+    Spreadsheet = 1,
+    Presentation = 2,
+    Drawing = 3,
+    #[num_enum(catch_all)]
+    Other(i32),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

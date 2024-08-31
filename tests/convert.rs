@@ -3,7 +3,7 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
-use libreofficekit::{CallbackType, DocUrl, Office, OfficeOptionalFeatures};
+use libreofficekit::{CallbackType, DocUrl, DocumentType, Office, OfficeOptionalFeatures};
 
 #[test]
 fn test_sample_docx() {
@@ -13,6 +13,10 @@ fn test_sample_docx() {
     let output_url = DocUrl::from_absolute_path("/tmp/test.pdf").unwrap();
 
     let mut document = office.document_load(&input_url).unwrap();
+
+    let document_type = document.get_document_type().unwrap();
+
+    assert_eq!(document_type, DocumentType::Text);
 
     let _doc = document.save_as(&output_url, "pdf", None).unwrap();
 }
@@ -110,6 +114,10 @@ fn test_sample_xlsx() {
 
     let mut document = office.document_load(&input_url).unwrap();
 
+    let document_type = document.get_document_type().unwrap();
+
+    assert_eq!(document_type, DocumentType::Spreadsheet);
+
     let _doc = document.save_as(&output_url, "pdf", None).unwrap();
 }
 
@@ -121,6 +129,10 @@ fn test_sample_txt() {
     let output_url = DocUrl::from_absolute_path("/tmp/test.pdf").unwrap();
 
     let mut document = office.document_load(&input_url).unwrap();
+
+    let document_type = document.get_document_type().unwrap();
+
+    assert_eq!(document_type, DocumentType::Text);
 
     let _doc = document.save_as(&output_url, "pdf", None).unwrap();
 }

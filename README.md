@@ -8,6 +8,7 @@ This library provides functionality for:
 - Obtaining available file filters from LibreOffice
 - Obtaining LibreOffice version information
 - Executing document macros
+- Determine document type
 
 
 
