@@ -6,6 +6,7 @@ use std::{
 };
 
 use ffi::{LibreOfficeKit, LibreOfficeKitClass, LibreOfficeKitDocument};
+use parking_lot::Mutex;
 
 use crate::{error::OfficeError, urls::DocUrl};
 
@@ -26,12 +27,17 @@ mod ffi {
 /// a new one can be created
 pub(crate) static GLOBAL_OFFICE_LOCK: AtomicBool = AtomicBool::new(false);
 
+/// Type used for the callback data
+pub type CallbackData = *mut Box<dyn FnMut(c_int, *const c_char)>;
+
 /// Raw office pointer access
 pub struct OfficeRaw {
     /// This pointer for LOK
     this: *mut LibreOfficeKit,
     /// Class pointer for LOK
     class: *mut LibreOfficeKitClass,
+    /// Callback data if specified
+    callback_data: Mutex<CallbackData>,
 }
 
 impl OfficeRaw {
@@ -48,6 +54,7 @@ impl OfficeRaw {
         let instance = Self {
             this: lok,
             class: lok_class,
+            callback_data: Mutex::new(null_mut()),
         };
 
         Ok(instance)
@@ -270,8 +277,10 @@ impl OfficeRaw {
 
     pub unsafe fn register_callback<F>(&self, callback: F) -> Result<(), OfficeError>
     where
-        F: FnMut(c_int, *const c_char),
+        F: FnMut(c_int, *const c_char) + 'static,
     {
+        self.free_callback();
+
         /// Create a shim to wrap the callback function so it can be invoked
         unsafe extern "C" fn callback_shim(ty: c_int, payload: *const c_char, data: *mut c_void) {
             // Get the callback function from the data argument
@@ -288,6 +297,9 @@ impl OfficeRaw {
         let callback_ptr: *mut Box<dyn FnMut(c_int, *const c_char)> =
             Box::into_raw(Box::new(Box::new(callback)));
 
+        // Store the current callback
+        *self.callback_data.lock() = callback_ptr;
+
         let register_callback = (*self.class)
             .registerCallback
             .ok_or(OfficeError::MissingFunction("registerCallback"))?;
@@ -300,6 +312,25 @@ impl OfficeRaw {
         }
 
         Ok(())
+    }
+
+    /// Frees the current allocated callback data memory if
+    /// a callback has been set
+    unsafe fn free_callback(&self) {
+        let callback = &mut *self.callback_data.lock();
+
+        // Callback has not been set
+        if callback.is_null() {
+            return;
+        }
+
+        let mut callback_ptr: CallbackData = null_mut();
+
+        // Obtain the callback pointer
+        std::mem::swap(callback, &mut callback_ptr);
+
+        // Reclaim the raw memory
+        _ = Box::from_raw(callback_ptr);
     }
 
     /// Requests the latest error from LOK if one is available
@@ -332,10 +363,14 @@ impl OfficeRaw {
         }
     }
 
-    /// Destroys the LOK instance
+    /// Destroys the LOK instance and frees any other
+    /// allocated memory
     pub unsafe fn destroy(&self) {
         let destroy = (*self.class).destroy.expect("missing destroy function");
         destroy(self.this);
+
+        // Free the callback if allocated
+        self.free_callback();
     }
 }
 

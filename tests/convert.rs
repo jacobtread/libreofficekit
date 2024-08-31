@@ -1,4 +1,7 @@
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 
 use libreofficekit::{CallbackType, DocUrl, Office, OfficeOptionalFeatures};
 
@@ -20,7 +23,7 @@ fn test_sample_docx_encrypted() {
 
     let input_url =
         DocUrl::from_relative_path("./tests/samples/sample-docx-encrypted.docx").unwrap();
-    let needs_password = AtomicBool::new(false);
+    let needs_password = Arc::new(AtomicBool::new(false));
 
     // Allow password requests
     office
@@ -28,13 +31,20 @@ fn test_sample_docx_encrypted() {
         .unwrap();
 
     office
-        .register_callback(|office, ty, _| {
-            if let CallbackType::DocumentPassword = ty {
-                // Password was requested
-                needs_password.store(true, Ordering::SeqCst);
+        .register_callback({
+            // Copies of local variables to include in the callback
+            let needs_password = needs_password.clone();
+            let input_url = input_url.clone();
 
-                // Provide "I don't have the password"
-                office.set_document_password(&input_url, None).unwrap();
+            // Callback itself
+            move |office, ty, _| {
+                if let CallbackType::DocumentPassword = ty {
+                    // Password was requested
+                    needs_password.store(true, Ordering::SeqCst);
+
+                    // Provide "I don't have the password"
+                    office.set_document_password(&input_url, None).unwrap();
+                }
             }
         })
         .unwrap();
@@ -46,46 +56,51 @@ fn test_sample_docx_encrypted() {
     assert!(needs_password.load(Ordering::SeqCst));
 }
 
-// #[test]
-// fn test_sample_docx_encrypted_known_password() {
-//     let office = Office::new(Office::find_install_path().unwrap()).unwrap();
+#[test]
+#[ignore = "currently failing"]
+fn test_sample_docx_encrypted_known_password() {
+    let office = Office::new(Office::find_install_path().unwrap()).unwrap();
 
-//     let input_url =
-//         DocUrl::from_relative_path("./tests/samples/sample-docx-encrypted.docx").unwrap();
-//     let needs_password = AtomicBool::new(false);
+    let input_url =
+        DocUrl::from_relative_path("./tests/samples/sample-docx-encrypted.docx").unwrap();
+    let needs_password = Arc::new(AtomicBool::new(false));
 
-//     // Allow password requests
-//     office
-//         .set_optional_features(
-//             OfficeOptionalFeatures::DOCUMENT_PASSWORD
-//                 | OfficeOptionalFeatures::DOCUMENT_PASSWORD_TO_MODIFY,
-//         )
-//         .unwrap();
+    // Allow password requests
+    office
+        .set_optional_features(OfficeOptionalFeatures::DOCUMENT_PASSWORD)
+        .unwrap();
 
-//     office
-//         .register_callback(|office, ty, _| {
-//             if let CallbackType::DocumentPassword = ty {
-//                 // Password was requested
-//                 if needs_password.swap(true, Ordering::SeqCst) {
-//                     // Password we provided was incorrect, clear password to prevent infinite callback loop
-//                     office.set_document_password(&input_url, None).unwrap();
-//                     return;
-//                 }
+    office
+        .register_callback({
+            // Copies of local variables to include in the callback
+            let needs_password = needs_password.clone();
+            let input_url = input_url.clone();
 
-//                 // Provide the password
-//                 office
-//                     .set_document_password(&input_url, Some("password"))
-//                     .unwrap();
-//             }
-//         })
-//         .unwrap();
+            // Callback itself
+            move |office, ty, _| {
+                if let CallbackType::DocumentPassword = ty {
+                    // Password was requested
+                    if needs_password.swap(true, Ordering::SeqCst) {
+                        // Password we provided was incorrect, clear password to prevent infinite callback loop
+                        office.set_document_password(&input_url, None).unwrap();
+                        return;
+                    }
 
-//     // Document loads
-//     let _doc = office.document_load(&input_url).unwrap();
+                    // Provide the password
+                    office
+                        .set_document_password(&input_url, Some("password"))
+                        .unwrap();
+                }
+            }
+        })
+        .unwrap();
 
-//     // Password was requested
-//     assert!(needs_password.load(Ordering::SeqCst));
-// }
+    // Document loads
+    let _doc = office.document_load(&input_url).unwrap();
+
+    // Password was requested
+    assert!(needs_password.load(Ordering::SeqCst));
+}
 
 #[test]
 fn test_sample_xlsx() {

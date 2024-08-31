@@ -206,7 +206,7 @@ impl Office {
 
     pub fn register_callback<F>(&self, mut callback: F) -> Result<(), OfficeError>
     where
-        F: FnMut(CallbackOffice, CallbackType, *const c_char),
+        F: FnMut(CallbackOffice, CallbackType, *const c_char) + 'static,
     {
         // Create an office instance to use within the callbacks
         let callback_office = CallbackOffice {
