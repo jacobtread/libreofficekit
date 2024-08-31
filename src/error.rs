@@ -28,6 +28,10 @@ pub enum OfficeError {
     #[error("string cannot contain null byte")]
     InvalidString(#[from] NulError),
 
+    /// Provided path was invalid
+    #[error("invalid path provided")]
+    InvalidPath,
+
     /// Prevented from creating another office instance
     #[error("already another active instance")]
     InstanceLock,

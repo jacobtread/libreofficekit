@@ -7,7 +7,7 @@ use std::{
     ffi::{c_ulonglong, CString},
     fmt::Display,
     os::raw::{c_char, c_int},
-    path::Path,
+    path::{Path, PathBuf},
     rc::{Rc, Weak},
     str::FromStr,
     sync::atomic::Ordering,
@@ -80,27 +80,22 @@ impl CallbackOffice {
 }
 
 impl Office {
-    /// Attempts to find an installation path from one of the common system install
-    /// locations
-    pub fn find_install_path() -> Option<&'static str> {
-        const KNOWN_PATHS: &[&str] = &[
-            "/usr/lib64/libreoffice/program",
-            "/usr/lib/libreoffice/program",
-        ];
-
-        // Check common paths
-        KNOWN_PATHS
-            .iter()
-            .find(|&path| Path::new(path).exists())
-            .copied()
-    }
-
     /// Creates a new LOK instance from the provided install path
-    pub fn new(install_path: &str) -> Result<Office, OfficeError> {
+    pub fn new<P: Into<PathBuf>>(install_path: P) -> Result<Office, OfficeError> {
         // Try lock the global office lock
         if GLOBAL_OFFICE_LOCK.swap(true, Ordering::SeqCst) {
             return Err(OfficeError::InstanceLock);
         }
+
+        let mut install_path: PathBuf = install_path.into();
+
+        // Resolve non absolute paths
+        if !install_path.is_absolute() {
+            install_path =
+                std::fs::canonicalize(install_path).map_err(|_| OfficeError::InvalidPath)?;
+        }
+
+        let install_path = install_path.to_str().ok_or(OfficeError::InvalidPath)?;
 
         let install_path = CString::new(install_path)?;
         let raw = match unsafe { sys::OfficeRaw::init(install_path.as_ptr()) } {
@@ -118,6 +113,98 @@ impl Office {
         }
 
         Ok(Office { raw: Rc::new(raw) })
+    }
+
+    /// Attempts to find an installation path from one of the common system install
+    /// locations
+    pub fn find_install_path() -> Option<PathBuf> {
+        // Common set of install paths
+        const KNOWN_PATHS: &[&str] = &[
+            "/usr/lib64/libreoffice/program",
+            "/usr/lib/libreoffice/program",
+        ];
+
+        // Check common paths
+        if let Some(value) = KNOWN_PATHS.iter().find_map(|path| {
+            let path = Path::new(path);
+            if !path.exists() {
+                return None;
+            }
+
+            Some(path.to_path_buf())
+        }) {
+            return Some(value);
+        }
+
+        // Search /opt for installs
+        if let Ok(Some(latest)) = Self::find_opt_latest() {
+            return Some(latest);
+        }
+
+        // No install found
+        None
+    }
+
+    /// Finds all installations of LibreOffice from the `/opt` directory
+    /// provides back a list of the paths along with the version extracted
+    /// from the directory name
+    pub fn find_opt_installs() -> std::io::Result<Vec<(ProductVersion, PathBuf)>> {
+        let opt_path = Path::new("/opt");
+        if !opt_path.exists() {
+            return Ok(Vec::with_capacity(0));
+        }
+
+        // Find all libreoffice folders
+        let installs: Vec<(ProductVersion, PathBuf)> = std::fs::read_dir(opt_path)?
+            .filter_map(|value| value.ok())
+            .filter_map(|value| {
+                // Get entry file type
+                let file_type = value.file_type().ok()?;
+
+                // Ignore non directories
+                if !file_type.is_dir() {
+                    return None;
+                }
+
+                let dir_name = value.file_name();
+                let dir_name = dir_name.to_str()?;
+
+                // Only use dirs prefixed with libreoffice
+                let version = dir_name.strip_prefix("libreoffice")?;
+
+                // Only use valid product versions
+                let product_version: ProductVersion = version.parse().ok()?;
+
+                let path = value.path();
+                let path = path.join("program");
+
+                // Not a valid office install s
+                if !path.exists() {
+                    return None;
+                }
+
+                Some((product_version, path))
+            })
+            .collect();
+
+        Ok(installs)
+    }
+
+    /// Finds the latest LibreOffice installation from the `/opt` directory
+    pub fn find_opt_latest() -> std::io::Result<Option<PathBuf>> {
+        // Find all libreoffice folders
+        let mut installs: Vec<(ProductVersion, PathBuf)> = Self::find_opt_installs()?;
+
+        // Sort to find the latest installed version
+        installs.sort_by_key(|(key, _)| *key);
+
+        // Last item will be the latest
+        let latest = installs
+            .pop()
+            // Only use the path portion
+            .map(|(_, path)| path);
+
+        Ok(latest)
     }
 
     pub fn get_filter_types(&self) -> Result<FilterTypes, OfficeError> {
@@ -428,7 +515,7 @@ pub enum CallbackType {
     Unknown(i32),
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct ProductVersion {
     pub major: u32,
     pub minor: u32,
