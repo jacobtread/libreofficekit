@@ -521,6 +521,60 @@ pub struct ProductVersion {
     pub minor: u32,
 }
 
+impl ProductVersion {
+    const MIN_SUPPORTED_VERSION: ProductVersion = ProductVersion::new(4, 3);
+    const VERSION_6_0: ProductVersion = ProductVersion::new(6, 0);
+
+    pub const fn new(major: u32, minor: u32) -> Self {
+        Self { major, minor }
+    }
+
+    /// documentLoad requires libreoffice >=4.3
+    pub fn is_document_load_available(&self) -> bool {
+        self.ge(&Self::MIN_SUPPORTED_VERSION)
+    }
+
+    /// documentLoad requires libreoffice >=5.0
+    pub fn is_document_load_options_available(&self) -> bool {
+        self.ge(&ProductVersion::new(5, 0))
+    }
+
+    /// freeError requires libreoffice >=5.2
+    pub fn is_free_error_available(&self) -> bool {
+        self.ge(&ProductVersion::new(5, 2))
+    }
+
+    /// registerCallback requires libreoffice >=6.0
+    pub fn is_register_callback_available(&self) -> bool {
+        self.ge(&Self::VERSION_6_0)
+    }
+
+    /// getFilterTypes requires libreoffice >=6.0
+    pub fn is_filter_types_available(&self) -> bool {
+        self.ge(&Self::VERSION_6_0)
+    }
+
+    /// setOptionalFeatures requires libreoffice >=6.0
+    pub fn is_optional_features_available(&self) -> bool {
+        self.ge(&Self::VERSION_6_0)
+    }
+
+    /// setDocumentPassword requires libreoffice >=6.0
+    pub fn is_set_document_password_available(&self) -> bool {
+        self.ge(&Self::VERSION_6_0)
+    }
+
+    /// getVersionInfo requires libreoffice >=6.0
+    pub fn is_get_version_info_available(&self) -> bool {
+        self.ge(&Self::VERSION_6_0)
+    }
+
+    /// runMacro requires libreoffice >=6.0
+    pub fn is_run_macro_available(&self) -> bool {
+        self.ge(&Self::VERSION_6_0)
+    }
+}
+
 impl PartialOrd for ProductVersion {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
