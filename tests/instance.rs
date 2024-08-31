@@ -33,3 +33,15 @@ fn test_version_info() {
 
     dbg!(version_info);
 }
+
+/// Tests obtaining the available filter types
+#[test]
+fn test_filter_types() {
+    let _lock = TEST_MUTEX.lock();
+
+    let office_path = Office::find_install_path().expect("missing office install path");
+    let office = Office::new(office_path).expect("failed to create office instance");
+    let filter_types = office.get_filter_types().unwrap();
+
+    dbg!(filter_types);
+}

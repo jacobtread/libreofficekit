@@ -390,6 +390,7 @@ impl Document {
 
 #[derive(Debug, Deserialize)]
 pub struct FilterTypes {
+    #[serde(flatten)]
     pub values: HashMap<String, FilterType>,
 }
 
