@@ -32,6 +32,5 @@ thiserror = "1"
 # URL handling
 url = "2.2.2"
 
-
 [build-dependencies]
 bindgen = "0.70"

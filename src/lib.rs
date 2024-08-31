@@ -8,6 +8,7 @@ use std::{
     fmt::Display,
     os::raw::{c_char, c_int},
     path::{Path, PathBuf},
+    ptr::null,
     rc::{Rc, Weak},
     str::FromStr,
     sync::atomic::Ordering,
@@ -70,10 +71,16 @@ impl CallbackOffice {
         // Obtain raw access
         let raw = self.raw.upgrade().ok_or(OfficeError::InstanceDropped)?;
 
-        // Unwrapping the default value ensures an empty string for empty passwords
-        let value = CString::new(password.unwrap_or_default())?;
+        let password = match password {
+            Some(value) => CString::new(value)?,
+            None => {
+                // Password is unset
+                unsafe { raw.set_document_password(url, null())? };
+                return Ok(());
+            }
+        };
 
-        unsafe { raw.set_document_password(url, value.as_ptr())? };
+        unsafe { raw.set_document_password(url, password.as_ptr())? };
 
         Ok(())
     }
