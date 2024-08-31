@@ -1,6 +1,6 @@
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
+use std::{
+    rc::Rc,
+    sync::atomic::{AtomicBool, Ordering},
 };
 
 use libreofficekit::{CallbackType, DocUrl, Office, OfficeOptionalFeatures};
@@ -23,7 +23,7 @@ fn test_sample_docx_encrypted() {
 
     let input_url =
         DocUrl::from_relative_path("./tests/samples/sample-docx-encrypted.docx").unwrap();
-    let needs_password = Arc::new(AtomicBool::new(false));
+    let needs_password = Rc::new(AtomicBool::new(false));
 
     // Allow password requests
     office
@@ -62,7 +62,7 @@ fn test_sample_docx_encrypted_known_password() {
 
     let input_url =
         DocUrl::from_relative_path("./tests/samples/sample-docx-encrypted.docx").unwrap();
-    let needs_password = Arc::new(AtomicBool::new(false));
+    let needs_password = Rc::new(AtomicBool::new(false));
 
     // Allow password requests
     office
@@ -95,7 +95,7 @@ fn test_sample_docx_encrypted_known_password() {
         .unwrap();
 
     // Document loads
-    let _doc = office.document_load(&input_url).unwrap();
+    let _document = office.document_load(&input_url).unwrap();
 
     // Password was requested
     assert!(needs_password.load(Ordering::SeqCst));
