@@ -67,16 +67,10 @@ impl CallbackOffice {
         // Obtain raw access
         let raw = self.raw.upgrade().ok_or(OfficeError::InstanceDropped)?;
 
-        // Create a C compatible string
-        let password = password.map(CString::new);
+        // Unwrapping the default value ensures an empty string for empty passwords
+        let value = CString::new(password.unwrap_or_default())?;
 
-        // Get pointer to the password
-        let password: *const c_char = password
-            .transpose()?
-            .map(|value| value.as_ptr())
-            .unwrap_or_else(std::ptr::null);
-
-        unsafe { raw.set_document_password(url, password)? };
+        unsafe { raw.set_document_password(url, value.as_ptr())? };
 
         Ok(())
     }

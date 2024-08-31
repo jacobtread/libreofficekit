@@ -57,7 +57,6 @@ fn test_sample_docx_encrypted() {
 }
 
 #[test]
-#[ignore = "currently failing"]
 fn test_sample_docx_encrypted_known_password() {
     let office = Office::new(Office::find_install_path().unwrap()).unwrap();
 
