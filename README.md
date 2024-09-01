@@ -14,9 +14,14 @@ This library provides functionality for:
 
 > [!IMPORTANT]
 >
-> LibreOffice has some broken behavior in the newer versions where the cleanup
-> functions of Office cause segmentation faults, you must keep around a single 
-> instance of Office around for the duration of your program
+> LibreOffice has some broken behavior in the newer versions where some process end cleanup logic causes a segmentation fault when the program exists.
+>
+> Versions that are not affected by this LibreOffice bug are versions 6.x with 
+> the latest being 6.4.7.2, any versions newer than this seem to be affected by 
+> this bug. This bug is present in all versions newer than 6.x including latest (25.2.0.0.alpha0+ as at 1 Sep 2024)
+>
+> You can find downloads to 6.4.7.2 on the download archives https://downloadarchive.documentfoundation.org/libreoffice/old/6.4.7.2/ but its recommended you use the latest version instead in most cases.
+
 
 ## Converting a file
 

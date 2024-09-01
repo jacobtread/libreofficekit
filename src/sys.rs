@@ -395,10 +395,7 @@ impl OfficeRaw {
 
 impl Drop for OfficeRaw {
     fn drop(&mut self) {
-        #[cfg(feature = "destroy_on_drop")]
-        unsafe {
-            self.destroy()
-        }
+        unsafe { self.destroy() }
 
         // Unlock the global office lock
         GLOBAL_OFFICE_LOCK.store(false, Ordering::SeqCst)
@@ -445,9 +442,6 @@ impl DocumentRaw {
 
 impl Drop for DocumentRaw {
     fn drop(&mut self) {
-        #[cfg(feature = "destroy_on_drop")]
-        unsafe {
-            self.destroy()
-        }
+        unsafe { self.destroy() }
     }
 }

@@ -354,12 +354,6 @@ impl Office {
 
         Ok(())
     }
-
-    /// Only exposed when destroy on drop is not enabled
-    #[cfg(not(feature = "destroy_on_drop"))]
-    pub fn destroy(&mut self) {
-        unsafe { self.raw.destroy() }
-    }
 }
 
 pub struct Document {
@@ -386,12 +380,6 @@ impl Document {
     pub fn get_document_type(&mut self) -> Result<DocumentType, OfficeError> {
         let result = unsafe { self.raw.get_document_type()? };
         Ok(DocumentType::from_primitive(result))
-    }
-
-    /// Only exposed when destroy on drop is not enabled
-    #[cfg(not(feature = "destroy_on_drop"))]
-    pub fn destroy(&mut self) {
-        unsafe { self.raw.destroy() }
     }
 }
 
@@ -625,6 +613,11 @@ impl ProductVersion {
     /// runMacro requires libreoffice >=6.0
     pub fn is_run_macro_available(&self) -> bool {
         self.ge(&Self::VERSION_6_0)
+    }
+
+    /// trimMemory requires libreoffice >=7.6
+    pub fn is_trim_memory_available(&self) -> bool {
+        self.ge(&ProductVersion::new(7, 6))
     }
 }
 
