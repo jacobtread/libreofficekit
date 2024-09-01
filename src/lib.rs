@@ -370,7 +370,15 @@ impl Document {
         filter: Option<&str>,
     ) -> Result<bool, OfficeError> {
         let format: CString = CString::new(format)?;
-        let filter: CString = CString::new(filter.unwrap_or_default())?;
+
+        let filter = match filter {
+            Some(value) => CString::new(value)?,
+            None => {
+                let result = unsafe { self.raw.save_as(url, format.as_ptr(), null())? };
+                return Ok(result != 0);
+            }
+        };
+
         let result = unsafe { self.raw.save_as(url, format.as_ptr(), filter.as_ptr())? };
 
         Ok(result != 0)
