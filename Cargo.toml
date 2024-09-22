@@ -30,3 +30,4 @@ url = "2.2.2"
 
 [build-dependencies]
 bindgen = "0.70"
+cc = "1.0"

@@ -1,52 +1,52 @@
 use std::env;
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::path::PathBuf;
 
-// perform make with argument
-fn make(path: &str) {
-    let out_dir = env::var("OUT_DIR").unwrap();
+fn main() {
+    // Determine compile output dir
+    let out_dir = env::var("OUT_DIR").expect("missing OUT_DIR");
 
-    let status = Command::new("gcc")
-        .args(["src/wrapper.c", "-c", "-fPIC", &format!("-I{path}"), "-o"])
-        .arg(format!("{out_dir}/wrapper.o"))
-        .status()
-        .unwrap();
-    if !status.success() {
-        panic!(
-            "make wrapper returns {:?}, maybe LO_INCLUDE_PATH is empty",
-            status.code().unwrap()
-        );
-    }
-    Command::new("ar")
-        .args(["crus", "libwrapper.a", "wrapper.o"])
-        .current_dir(Path::new(&out_dir))
-        .status()
-        .unwrap();
-    println!("cargo:rustc-link-search=native={out_dir}");
-}
+    // Determine libreoffice include path
+    let lo_include_path =
+        std::env::var("LO_INCLUDE_PATH").unwrap_or_else(|_| "/usr/include/LibreOfficeKit".into());
 
-fn generate_binding(path: &str) {
+    // Rebuild if the libreoffice source files change
+    println!("cargo:rerun-if-changed={lo_include_path}");
+
+    // Build the wrapper library
+    // Compile the wrapper
+    cc::Build::new()
+        .cpp(true)
+        .file("src/wrapper.cpp")
+        .flag("-fPIC")
+        // Include the libreoffice headers
+        .include(&lo_include_path)
+        // Suppress warnings for unsafe functions
+        .define("_CRT_SECURE_NO_WARNINGS", None)
+        .compile("wrapper");
+
+    // Add the out dir to the link search path
+    println!("cargo:rustc-link-search=native={}", out_dir);
+
+    // Re-run build if the wrapper changes
+    println!("cargo:rerun-if-changed=src/wrapper.c");
+
+    // Generate bindings to the library
     let bindings = bindgen::Builder::default()
-        .header("src/wrapper.h")
+        .header("src/wrapper.hpp")
         .layout_tests(false)
-        .clang_arg(format!("-I{path}"))
+        .clang_arg(format!("-I{lo_include_path}"))
+        .clang_arg("-std=c++14")
         .allowlist_type("LibreOfficeKit")
         .allowlist_type("LibreOfficeKitDocument")
         .allowlist_function("lok_init_wrapper")
         .generate()
         .expect("Unable to generate bindings");
-    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let out_path = PathBuf::from(out_dir);
 
     bindings
         .write_to_file(out_path.join("bindings.rs"))
         .expect("Couldn't write bindings!");
-}
 
-fn main() {
-    let lo_include_path =
-        std::env::var("LO_INCLUDE_PATH").unwrap_or_else(|_| "/usr/include/LibreOfficeKit".into());
-    println!("cargo:rerun-if-changed={lo_include_path}");
-    make(&lo_include_path);
-    generate_binding(&lo_include_path);
+    // Tell the linker to statically link to the wrapper
     println!("cargo:rustc-link-lib=static=wrapper");
 }

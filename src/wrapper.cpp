@@ -1,4 +1,4 @@
-#include "wrapper.h"
+#include "wrapper.hpp"
 
 LibreOfficeKit *
 lok_init_wrapper(const char *install_path)
