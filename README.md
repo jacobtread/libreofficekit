@@ -12,6 +12,8 @@ This library provides functionality for:
 
 This library does not link to the LibreOfficeKit C++ headers like other implementations, I have move that code into the Rust implementation so a C++ build toolchain is not required to build this library
 
+For examples of how to use the library in a real life setting check out the [Office convert server](https://github.com/jacobtread/office-convert-server) which is a real instance of this library being used in production.
+
 ## LibreOffice Support 
 
 Tested against Libreoffice versions 6.4.7.2 and 25.2.6.2 should be compatible with versions supported by the standard LOK C++ library. 
