@@ -1,26 +1,20 @@
 use std::{
     ffi::{CStr, CString},
     os::raw::{c_char, c_int, c_ulonglong, c_void},
+    path::Path,
     ptr::null_mut,
     sync::atomic::{AtomicBool, Ordering},
 };
 
-use ffi::{LibreOfficeKit, LibreOfficeKitClass, LibreOfficeKitDocument};
+use crate::bindings::{LibreOfficeKit, LibreOfficeKitClass, LibreOfficeKitDocument};
+use dlopen2::wrapper::{Container, WrapperApi};
+use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
 
 use crate::{error::OfficeError, urls::DocUrl};
 
-// Include the bindings
-#[allow(
-    dead_code,
-    non_snake_case,
-    non_camel_case_types,
-    non_upper_case_globals
-)]
-#[allow(clippy::all)]
-mod ffi {
-    include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
-}
+// Global instance of the LOK library container
+static LOK_CONTAINER: OnceCell<Container<LibreOfficeApi>> = OnceCell::new();
 
 /// Global lock to prevent creating multiple office instances
 /// at one time, all other instances must be dropped before
@@ -29,6 +23,94 @@ pub(crate) static GLOBAL_OFFICE_LOCK: AtomicBool = AtomicBool::new(false);
 
 /// Type used for the callback data
 pub type CallbackData = *mut Box<dyn FnMut(c_int, *const c_char)>;
+
+#[cfg(target_os = "windows")]
+const TARGET_LIB: &str = "libsofficeapp.dll";
+#[cfg(target_os = "windows")]
+const TARGET_MERGED_LIB: &str = "libmergedlo.dll";
+
+#[cfg(target_os = "linux")]
+const TARGET_LIB: &str = "libsofficeapp.so";
+#[cfg(target_os = "linux")]
+const TARGET_MERGED_LIB: &str = "libmergedlo.so";
+
+#[cfg(target_os = "macos")]
+const TARGET_LIB: &str = "libsofficeapp.dylib";
+#[cfg(target_os = "macos")]
+const TARGET_MERGED_LIB: &str = "libmergedlo.dylib";
+
+#[derive(WrapperApi)]
+struct LibreOfficeApi {
+    /// Pre initialization hook
+    lok_preinit: Option<
+        fn(
+            install_path: *const std::os::raw::c_char,
+            user_profile_url: *const std::os::raw::c_char,
+        ) -> std::os::raw::c_int,
+    >,
+
+    libreofficekit_hook:
+        Option<fn(install_path: *const std::os::raw::c_char) -> *mut LibreOfficeKit>,
+
+    libreofficekit_hook_2: Option<
+        fn(
+            install_path: *const std::os::raw::c_char,
+            user_profile_url: *const std::os::raw::c_char,
+        ) -> *mut LibreOfficeKit,
+    >,
+}
+
+/// Loads the LOK functions from the dynamic link library
+fn lok_open(install_path: &Path) -> Result<Container<LibreOfficeApi>, OfficeError> {
+    let target_lib_path = install_path.join(TARGET_LIB);
+    let target_merged_lib_path = install_path.join(TARGET_MERGED_LIB);
+
+    if target_lib_path.exists() {
+        // Check target library
+        let err = match unsafe { Container::load(&target_lib_path) } {
+            Ok(value) => return Ok(value),
+            Err(err) => err,
+        };
+
+        // If the file can be opened and is likely a real library we fail here
+        // instead of trying TARGET_MERGED_LIB same as standard LOK
+        if std::fs::File::open(target_lib_path)
+            .and_then(|file| file.metadata())
+            .is_ok_and(|value| value.len() > 100)
+        {
+            return Err(OfficeError::LoadLibrary(err));
+        }
+    }
+
+    if target_merged_lib_path.exists() {
+        // Check merged target library
+        let err = match unsafe { Container::load(target_merged_lib_path) } {
+            Ok(value) => return Ok(value),
+            Err(err) => err,
+        };
+
+        return Err(OfficeError::LoadLibrary(err));
+    }
+
+    Err(OfficeError::MissingLibrary)
+}
+
+fn lok_init(install_path: &Path) -> Result<*mut LibreOfficeKit, OfficeError> {
+    // Try initialize the container (If not already initialized)
+    let container = LOK_CONTAINER.get_or_try_init(|| lok_open(install_path))?;
+
+    // Get the hook function
+    let lok_hook = container
+        .libreofficekit_hook
+        .ok_or(OfficeError::MissingLibraryHook)?;
+
+    let install_path = install_path.to_str().ok_or(OfficeError::InvalidPath)?;
+    let install_path = CString::new(install_path)?;
+
+    let lok = lok_hook(install_path.as_ptr());
+
+    Ok(lok)
+}
 
 /// Raw office pointer access
 pub struct OfficeRaw {
@@ -42,8 +124,8 @@ pub struct OfficeRaw {
 
 impl OfficeRaw {
     /// Initializes a new instance of LOK
-    pub unsafe fn init(install_path: *const c_char) -> Result<Self, OfficeError> {
-        let lok = ffi::lok_init_wrapper(install_path);
+    pub unsafe fn init(install_path: &Path) -> Result<Self, OfficeError> {
+        let lok = lok_init(install_path)?;
 
         if lok.is_null() {
             return Err(OfficeError::UnknownInit);

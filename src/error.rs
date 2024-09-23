@@ -4,6 +4,18 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum OfficeError {
+    /// The library files did not exist
+    #[error("library not found")]
+    MissingLibrary,
+
+    /// Library is missing required hook function
+    #[error("library missing hook function")]
+    MissingLibraryHook,
+
+    /// Failed to load the underlying library
+    #[error(transparent)]
+    LoadLibrary(dlopen2::Error),
+
     /// Error message produced by office
     #[error("{0}")]
     OfficeError(String),

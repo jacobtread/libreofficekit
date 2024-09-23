@@ -1,3 +1,4 @@
+mod bindings;
 pub mod error;
 mod sys;
 pub mod urls;
@@ -102,10 +103,7 @@ impl Office {
                 std::fs::canonicalize(install_path).map_err(|_| OfficeError::InvalidPath)?;
         }
 
-        let install_path = install_path.to_str().ok_or(OfficeError::InvalidPath)?;
-
-        let install_path = CString::new(install_path)?;
-        let raw = match unsafe { sys::OfficeRaw::init(install_path.as_ptr()) } {
+        let raw = match unsafe { sys::OfficeRaw::init(&install_path) } {
             Ok(value) => value,
             Err(err) => {
                 // Unlock the global office lock on init failure

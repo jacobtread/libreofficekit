@@ -10,7 +10,9 @@ This library provides functionality for:
 - Executing document macros
 - Determine document type
 
+## Support 
 
+Tested against Libreoffice versions 6.4.7.2 and 25.2.6.2 should be compatible with vast majority of versions supported by the standard LOK C++ library
 
 > [!IMPORTANT]
 >

@@ -6,7 +6,7 @@ license = "MIT"
 repository = "https://github.com/jacobtread/libreofficekit"
 authors = ["Jacobtread <jacobtread@gmail.com>"]
 readme = "README.md"
-description = "Wrapper around the LibreofficeKit (LOK) C++ library"
+description = "LibreOfficeKit implementation in Rust"
 
 [dependencies]
 # Bitsets
@@ -14,6 +14,12 @@ bitflags = "2"
 
 # Enum constants
 num_enum = "0.7"
+
+# Library loading for LibreOffice library
+dlopen2 = "0.7.0"
+
+# Once cell for storing the loaded library
+once_cell = "1.19.0"
 
 # Locks for sharing safely
 parking_lot = "0.12"
@@ -27,7 +33,3 @@ thiserror = "1"
 
 # URL handling
 url = "2.2.2"
-
-[build-dependencies]
-bindgen = "0.70"
-cc = "1.0"
