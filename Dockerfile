@@ -45,8 +45,8 @@ COPY build.rs .
 RUN mkdir src && echo "" >src/lib.rs
 
 # Copy C wrapper
-COPY src/wrapper.c ./src/wrapper.c
-COPY src/wrapper.h ./src/wrapper.h
+COPY src/wrapper.cpp ./src/wrapper.cpp
+COPY src/wrapper.hpp ./src/wrapper.hpp
 
 # Build with no actual code (Dependency precaching)
 RUN cargo build --target x86_64-unknown-linux-gnu --release
