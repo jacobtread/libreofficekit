@@ -10,9 +10,15 @@ This library provides functionality for:
 - Executing document macros
 - Determine document type
 
-## Support 
+This library does not link to the LibreOfficeKit C++ headers like other implementations, I have move that code into the Rust implementation so a C++ build toolchain is not required to build this library
 
-Tested against Libreoffice versions 6.4.7.2 and 25.2.6.2 should be compatible with vast majority of versions supported by the standard LOK C++ library
+## LibreOffice Support 
+
+Tested against Libreoffice versions 6.4.7.2 and 25.2.6.2 should be compatible with versions supported by the standard LOK C++ library. 
+
+Certain functions are only available in certain LibreOffice versions, calling these on a unsupported install will return `OfficeError::MissingFunction` as the error.
+
+You can also use `Office::get_version_info` which will provide a `OfficeVersionInfo` structure which contains a `product_version` field with helper functions such as `is_free_error_available` which tells you whether a specific function should be available for that version
 
 > [!IMPORTANT]
 >
@@ -24,6 +30,11 @@ Tested against Libreoffice versions 6.4.7.2 and 25.2.6.2 should be compatible wi
 >
 > You can find downloads to 6.4.7.2 on the download archives https://downloadarchive.documentfoundation.org/libreoffice/old/6.4.7.2/ but its recommended you use the latest version instead in most cases.
 
+
+
+## Windows Support
+
+This library can be run and compiled on Windows. However, the `Office::find_install_path()` will only find valid paths on Linux, for Windows you will need to manually specify the path to your LibreOffice installation
 
 ## Converting a file
 
