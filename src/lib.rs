@@ -212,6 +212,7 @@ impl Office {
         Ok(latest)
     }
 
+    /// Obtains the available filter types / file formats from LibreOffice
     pub fn get_filter_types(&self) -> Result<FilterTypes, OfficeError> {
         let value = unsafe { self.raw.get_filter_types()? };
 
@@ -223,6 +224,7 @@ impl Office {
         Ok(value)
     }
 
+    /// Obtains the version information from the LibreOffice install
     pub fn get_version_info(&self) -> Result<OfficeVersionInfo, OfficeError> {
         let value = unsafe { self.raw.get_version_info()? };
 
@@ -234,6 +236,7 @@ impl Office {
         Ok(value)
     }
 
+    /// Signs a document at the provided `url` using the provided `certificate` and `private_key`
     pub fn sign_document(
         &self,
         url: &DocUrl,
@@ -257,11 +260,13 @@ impl Office {
         Ok(result)
     }
 
+    /// Loads a document from the provided `url`
     pub fn document_load(&self, url: &DocUrl) -> Result<Document, OfficeError> {
         let raw = unsafe { self.raw.document_load(url)? };
         Ok(Document { raw })
     }
 
+    /// Loads a document with additional options
     pub fn document_load_with_options(
         &self,
         url: &DocUrl,
@@ -272,6 +277,7 @@ impl Office {
         Ok(Document { raw })
     }
 
+    /// Sends a dialog event
     pub fn send_dialog_event(
         &self,
         window_id: c_ulonglong,
@@ -284,6 +290,7 @@ impl Office {
         Ok(())
     }
 
+    /// Sets optional feature flags
     pub fn set_optional_features(
         &self,
         features: OfficeOptionalFeatures,
@@ -293,6 +300,8 @@ impl Office {
         Ok(())
     }
 
+    /// Registers a callback that will run when Office has some event to inform the
+    /// library about (Status indicators, password prompts etc)
     pub fn register_callback<F>(&self, mut callback: F) -> Result<(), OfficeError>
     where
         F: FnMut(CallbackOffice, CallbackType, *const c_char) + 'static,
@@ -316,6 +325,7 @@ impl Office {
         Ok(())
     }
 
+    /// Clears any current callback registered with [Office::register_callback]
     pub fn clear_callback(&self) -> Result<(), OfficeError> {
         unsafe {
             self.raw.clear_callback()?;
@@ -324,17 +334,21 @@ impl Office {
         Ok(())
     }
 
+    /// Runs a macro at the provided `url`
     pub fn run_macro(&self, url: &str) -> Result<bool, OfficeError> {
         let url = CString::new(url)?;
         let result = unsafe { self.raw.run_macro(url.as_ptr())? };
         Ok(result)
     }
 
+    /// Utility function to dump the LibreOffice current state as a string
+    /// for debugging
     pub fn dump_state(&self) -> Result<String, OfficeError> {
         let value = unsafe { self.raw.dump_state()? };
         Ok(value.to_string_lossy().to_string())
     }
 
+    /// Sets an option in LibreOffice
     pub fn set_option(&self, option: &str, value: &str) -> Result<(), OfficeError> {
         let option = CString::new(option)?;
         let value = CString::new(value)?;
@@ -354,6 +368,7 @@ impl Office {
     }
 }
 
+/// Instance of a loaded document
 pub struct Document {
     /// Raw inner document
     raw: sys::DocumentRaw,
