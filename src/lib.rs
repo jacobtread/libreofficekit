@@ -129,6 +129,14 @@ impl Office {
             "/usr/lib/libreoffice/program",
         ];
 
+        // Check environment variables
+        if let Ok(env) = std::env::var("LOK_PROGRAM_PATH") {
+            let path = Path::new(&env);
+            if path.exists() {
+                return Some(path.to_path_buf());
+            }
+        }
+
         // Check common paths
         if let Some(value) = KNOWN_PATHS.iter().find_map(|path| {
             let path = Path::new(path);
