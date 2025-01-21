@@ -33,3 +33,6 @@ thiserror = "1"
 
 # URL handling
 url = "2.2.2"
+
+[dev-dependencies]
+tempfile = "3"
