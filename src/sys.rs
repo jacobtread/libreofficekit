@@ -25,9 +25,9 @@ pub(crate) static GLOBAL_OFFICE_LOCK: AtomicBool = AtomicBool::new(false);
 pub type CallbackData = *mut Box<dyn FnMut(c_int, *const c_char)>;
 
 #[cfg(target_os = "windows")]
-const TARGET_LIB: &str = "libsofficeapp.dll";
+const TARGET_LIB: &str = "sofficeapp.dll";
 #[cfg(target_os = "windows")]
-const TARGET_MERGED_LIB: &str = "libmergedlo.dll";
+const TARGET_MERGED_LIB: &str = "mergedlo.dll";
 
 #[cfg(target_os = "linux")]
 const TARGET_LIB: &str = "libsofficeapp.so";
@@ -62,9 +62,17 @@ struct LibreOfficeApi {
 
 /// Loads the LOK functions from the dynamic link library
 fn lok_open(install_path: &Path) -> Result<Container<LibreOfficeApi>, OfficeError> {
-    let target_lib_path = install_path.join(TARGET_LIB);
-    let target_merged_lib_path = install_path.join(TARGET_MERGED_LIB);
+    // Append program folder to PATH environment for windows DLL loading
+    if let Ok(path) = std::env::var("PATH") {
+        let install_path = install_path.to_string_lossy();
+        let install_path = install_path.as_ref();
 
+        if !path.contains(install_path) {
+            std::env::set_var("PATH", format!("{};{}", install_path, path));
+        }
+    }
+
+    let target_lib_path = install_path.join(TARGET_LIB);
     if target_lib_path.exists() {
         // Check target library
         let err = match unsafe { Container::load(&target_lib_path) } {
@@ -82,9 +90,10 @@ fn lok_open(install_path: &Path) -> Result<Container<LibreOfficeApi>, OfficeErro
         }
     }
 
+    let target_merged_lib_path = install_path.join(TARGET_MERGED_LIB);
     if target_merged_lib_path.exists() {
         // Check merged target library
-        let err = match unsafe { Container::load(target_merged_lib_path) } {
+        let err = match unsafe { Container::load_with_flags(target_merged_lib_path, Some(2)) } {
             Ok(value) => return Ok(value),
             Err(err) => err,
         };
