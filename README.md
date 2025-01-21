@@ -16,15 +16,17 @@ For examples of how to use the library in a real life setting check out the [Off
 
 ## LibreOffice Support 
 
-Tested against Libreoffice versions 6.4.7.2 and 25.2.6.2 should be compatible with versions supported by the standard LOK C++ library. 
+Tested against Libreoffice versions 6.4.7.2 and 24.8.4.2 should be compatible with versions supported by the standard LOK C++ library. 
 
 Certain functions are only available in certain LibreOffice versions, calling these on a unsupported install will return `OfficeError::MissingFunction` as the error.
 
 You can also use `Office::get_version_info` which will provide a `OfficeVersionInfo` structure which contains a `product_version` field with helper functions such as `is_free_error_available` which tells you whether a specific function should be available for that version
 
 > [!IMPORTANT]
+> LibreOffice has some broken behavior in some versions where some process end cleanup logic causes a segmentation fault when the program exists. This issue has been fixed in the latest release.
 >
-> LibreOffice has some broken behavior in the newer versions where some process end cleanup logic causes a segmentation fault when the program exists.
+> However LibreOffice will cause a segmentation fault if you try and create an instance
+> after already destroying one so its recommenced you maintain an instance for the life of the program    
 >
 > Versions that are not affected by this LibreOffice bug are versions 6.x with 
 > the latest being 6.4.7.2, any versions newer than this seem to be affected by 
@@ -37,6 +39,10 @@ You can also use `Office::get_version_info` which will provide a `OfficeVersionI
 ## Windows Support
 
 This library can be run and compiled on Windows. However, the `Office::find_install_path()` will only find valid paths on Linux, for Windows you will need to manually specify the path to your LibreOffice installation
+
+> As of version `0.4.0` you can specify the `LOK_PROGRAM_PATH` environment variable pointing it towards the "program" folder in your LibreOffice installation path and this will be used by `Office::find_install_path()` if the path is valid
+
+
 
 ## Converting a file
 
