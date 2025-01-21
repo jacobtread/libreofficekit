@@ -101,6 +101,63 @@ fn test_sample_docx_encrypted() {
 }
 
 #[test]
+fn test_sample_docx_encrypted_then_normal() {
+    let _lock = OFFICE_TEST_LOCK.lock();
+
+    let office = Office::new(Office::find_install_path().unwrap()).unwrap();
+
+    {
+        let input_url =
+            DocUrl::from_relative_path("./tests/samples/sample-docx-encrypted.docx").unwrap();
+        let needs_password = Rc::new(AtomicBool::new(false));
+
+        // Allow password requests
+        office
+            .set_optional_features(OfficeOptionalFeatures::DOCUMENT_PASSWORD)
+            .unwrap();
+
+        office
+            .register_callback({
+                // Copies of local variables to include in the callback
+                let needs_password = needs_password.clone();
+                let input_url = input_url.clone();
+
+                // Callback itself
+                move |office, ty, _| {
+                    if let CallbackType::DocumentPassword = ty {
+                        // Password was requested
+                        needs_password.store(true, Ordering::SeqCst);
+
+                        // Provide "I don't have the password"
+                        office.set_document_password(&input_url, None).unwrap();
+                    }
+                }
+            })
+            .unwrap();
+
+        // Document fails to load
+        assert!(office.document_load(&input_url).is_err());
+
+        // Password was requested
+        assert!(needs_password.load(Ordering::SeqCst));
+    }
+
+    {
+        let (output_path, _temp_dir) = temp_file("test-sample.pdf");
+        let input_url = DocUrl::from_relative_path("./tests/samples/sample-docx.docx").unwrap();
+        let output_url = DocUrl::from_path(output_path).unwrap();
+
+        let mut document = office.document_load(&input_url).unwrap();
+
+        let document_type = document.get_document_type().unwrap();
+
+        assert_eq!(document_type, DocumentType::Text);
+
+        let _doc = document.save_as(&output_url, "pdf", None).unwrap();
+    }
+}
+
+#[test]
 fn test_sample_docx_encrypted_known_password() {
     let _lock = OFFICE_TEST_LOCK.lock();
 
