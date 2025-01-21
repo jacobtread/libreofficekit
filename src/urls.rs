@@ -1,6 +1,6 @@
 use std::ffi::{c_char, CString};
 use std::fmt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use url::Url;
 
 use crate::error::OfficeError;
@@ -47,6 +47,18 @@ impl DocUrl {
         Ok(DocUrl(value_str))
     }
 
+    /// Converts a path type into a [DocUrl]
+    pub fn from_path<P: Into<PathBuf>>(path: P) -> Result<DocUrl, OfficeError> {
+        let path: PathBuf = path.into();
+        let abs_path = match path.is_absolute() {
+            false => std::path::absolute(&path)
+                .map_err(|err| OfficeError::OfficeError(err.to_string()))?,
+            true => path,
+        };
+
+        Self::from_absolute_path(abs_path.display().to_string())
+    }
+
     /// Converts a remote URI path into a [DocUrl]
     pub fn from_remote_uri<S: AsRef<str>>(uri: S) -> Result<DocUrl, OfficeError> {
         let uri: &str = uri.as_ref();
@@ -88,7 +100,11 @@ mod test {
     /// Tests a valid absolute URL
     #[test]
     fn test_absolute() {
+        #[cfg(target_os = "windows")]
+        let path = "C://";
+        #[cfg(not(target_os = "windows"))]
         let path = "/src";
+
         let _url = DocUrl::from_absolute_path(path).unwrap();
     }
 
