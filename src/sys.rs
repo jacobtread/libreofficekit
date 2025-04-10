@@ -466,7 +466,7 @@ impl OfficeRaw {
     ///
     /// Used when we've obtained the error as we clone
     /// our own copy of the error
-    unsafe fn free_error(&self, error: *mut i8) {
+    unsafe fn free_error(&self, error: *mut c_char) {
         // Only available LibreOffice >=5.2
         if let Some(free_error) = (*self.class).freeError {
             free_error(error);
