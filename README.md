@@ -1,6 +1,6 @@
 # LibreOfficeKit
 
-Rust library providing safe access to the LibreOfficeSDK (LOK)
+Rust library providing safe access to the LibreOfficeKit (LOK)
 
 This library provides functionality for:
 - Converting documents between various office and non-office formats (docx, xlsx, odt, ...etc into PDF and other supported formats see [File Conversion Filter Names](https://help.libreoffice.org/latest/en-US/text/shared/guide/convertfilters.html))
