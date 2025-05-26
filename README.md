@@ -10,7 +10,7 @@ This library provides functionality for:
 - Executing document macros
 - Determine document type
 
-This library does not link to the LibreOfficeKit C++ headers like other implementations, I have move that code into the Rust implementation so a C++ build toolchain is not required to build this library
+This library does not link to the LibreOfficeKit C++ headers like other implementations, I have move that code into the Rust implementation so a C++ build toolchain is not required to build this library.
 
 For examples of how to use the library in a real life setting check out the [Office convert server](https://github.com/jacobtread/office-convert-server) which is a real instance of this library being used in production.
 
@@ -38,10 +38,13 @@ You can also use `Office::get_version_info` which will provide a `OfficeVersionI
 
 ## Windows Support
 
-This library can be run and compiled on Windows. However, the `Office::find_install_path()` will only find valid paths on Linux, for Windows you will need to manually specify the path to your LibreOffice installation
+This library can be run and compiled on Windows. However, the `Office::find_install_path()` will only find valid paths on Linux, for Windows you will need to manually specify the path to your LibreOffice installation.
 
 > As of version `0.4.0` you can specify the `LOK_PROGRAM_PATH` environment variable pointing it towards the "program" folder in your LibreOffice installation path and this will be used by `Office::find_install_path()` if the path is valid
 
+## macOS Support
+
+This library doesn't work on macOS due to a [missing headless mode support in LibreOffice](https://bugs.documentfoundation.org/show_bug.cgi?id=145127).
 
 
 ## Converting a file
