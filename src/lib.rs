@@ -127,6 +127,8 @@ impl Office {
         const KNOWN_PATHS: &[&str] = &[
             "/usr/lib64/libreoffice/program",
             "/usr/lib/libreoffice/program",
+            #[cfg(target_os = "macos")]
+            "/Applications/LibreOffice.app/Contents/Frameworks",
         ];
 
         // Check environment variables
